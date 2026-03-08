@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Versions - Shangdaren</title>
+    <style>
+        :root {
+            --primary-color: #c0392b;
+            --secondary-color: #2c3e50;
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--bg-gradient);
+            line-height: 1.6;
+            color: #333;
+        }
+
+        header {
+            background: rgba(44, 62, 80, 0.95);
+            color: white;
+            padding: 10px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        #header-left,
+        #header-right {
+            flex: 1;
+        }
+
+        #header-center {
+            flex: 2;
+            text-align: center;
+        }
+
+        #header-center h3 {
+            margin: 0;
+            font-family: serif;
+            font-size: 1.6rem;
+            letter-spacing: 2px;
+            color: white;
+        }
+
+        .breadcrumb a {
+            color: #bdc3c7;
+            text-decoration: none;
+            margin-right: 15px;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a:hover {
+            color: white;
+        }
+
+        #header-right {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        #lang-select {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        #lang-select option {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 15px;
+        }
+
+        .section-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .version {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .version:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        dt {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--secondary-color);
+        }
+
+        dd {
+            margin-left: 20px;
+            color: #555;
+            margin-top: 5px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: #777;
+            font-size: 0.9rem;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        /* Multi-language visibility */
+        body [lang="en"],
+        body [lang="zh"] {
+            display: none;
+        }
+
+        body.lang-en [lang="en"] {
+            display: block;
+        }
+
+        body.lang-zh [lang="zh"] {
+            display: block;
+        }
+
+        body.lang-en span[lang="en"],
+        body.lang-en a[lang="en"] {
+            display: inline;
+        }
+
+        body.lang-zh span[lang="zh"],
+        body.lang-zh a[lang="zh"] {
+            display: inline;
+        }
+
+        body.lang-en p[lang="en"],
+        body.lang-en div[lang="en"],
+        body.lang-en dt[lang="en"],
+        body.lang-en dd[lang="en"] {
+            display: block;
+        }
+
+        body.lang-zh p[lang="zh"],
+        body.lang-zh div[lang="zh"],
+        body.lang-zh dt[lang="zh"],
+        body.lang-zh dd[lang="zh"] {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="lang-zh">
+    <header>
+        <div id="header-left">
+            <nav class="breadcrumb">
+                <a href="about.html" lang="en">About</a>
+                <a href="about.html" lang="zh">关于</a>
+                <a href="how-to.html" lang="en">How-to</a>
+                <a href="how-to.html" lang="zh">玩法</a>
+                <a href="versions.html" lang="en">Versions</a>
+                <a href="versions.html" lang="zh">版本</a>
+            </nav>
+        </div>
+        <div id="header-center">
+            <h3>上大人</h3>
+        </div>
+        <div id="header-right">
+            <select id="lang-select" onchange="switchLanguage(this.value)">
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+    </header>
+
+    <main>
+        <h1 lang="en">Version History</h1>
+        <h1 lang="zh">版本历史</h1>
+
+        <section class="section-card">
+            <div class="version">
+                <dt lang="en">Upcoming</dt>
+                <dt lang="zh">正在规划 (即将推出)</dt>
+                <dd lang="en">Sound effects for card actions.</dd>
+                <dd lang="zh">增加打牌动作音效。</dd>
+                <dd lang="en">Multiple human players play over internet.</dd>
+                <dd lang="zh">支持多人联机在线对弈。</dd>
+                <dd lang="en">Player registration and score tracking, with leader board.</dd>
+                <dd lang="zh">玩家注册、积分统计及全球排行榜。</dd>
+            </div>
+            <div class="version">
+                <dt lang="en">v0.1 (2026-03)</dt>
+                <dt lang="zh">v0.1 (2026年3月)</dt>
+                <dd lang="en">Watch all bot players play.</dd>
+                <dd lang="zh">支持观看所有机器人自动对局。</dd>
+                <dd lang="en">Single human player with two bot players.</dd>
+                <dd lang="zh">单人玩家与两个机器人对手模式。</dd>
+                <dd lang="en">Basic game mechanics works, with possible rough edges.</dd>
+                <dd lang="zh">基础游戏机制已就绪，部分细节尚待打磨。</dd>
+            </div>
+        </section>
+
+        <a href="index.html" class="back-link">
+            <span lang="en">← Back to Game</span>
+            <span lang="zh">← 返回游戏</span>
+        </a>
+    </main>
+
+    <footer>
+        <span lang="en">&copy; 2026 Shangdaren App. Ancient Teachings, Modern Play.</span>
+        <span lang="zh">&copy; 2026 上大人 App。古老智慧，现代玩法。</span>
+    </footer>
+
+    <script>
+        function switchLanguage(lang) {
+            document.body.className = 'lang-' + lang;
+            localStorage.setItem('language', lang);
+            document.getElementById('lang-select').value = lang;
+        }
+
+        // Initialize from localStorage
+        const savedLang = localStorage.getItem('language') || 'zh';
+        switchLanguage(savedLang);
+    </script>
+</body>
+
+</html>

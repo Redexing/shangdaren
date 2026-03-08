@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - Shangdaren</title>
+    <style>
+        :root {
+            --primary-color: #c0392b;
+            --secondary-color: #2c3e50;
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--bg-gradient);
+            line-height: 1.6;
+            color: #333;
+        }
+
+        header {
+            background: rgba(44, 62, 80, 0.95);
+            color: white;
+            padding: 10px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        #header-left,
+        #header-right {
+            flex: 1;
+        }
+
+        #header-center {
+            flex: 2;
+            text-align: center;
+        }
+
+        #header-center h3 {
+            margin: 0;
+            font-family: serif;
+            font-size: 1.6rem;
+            letter-spacing: 2px;
+            color: white;
+        }
+
+        .breadcrumb a {
+            color: #bdc3c7;
+            text-decoration: none;
+            margin-right: 15px;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a:hover {
+            color: white;
+        }
+
+        #header-right {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        #lang-select {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        #lang-select option {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 15px;
+        }
+
+        .section-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: #777;
+            font-size: 0.9rem;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        /* Multi-language visibility */
+        body [lang="en"],
+        body [lang="zh"] {
+            display: none;
+        }
+
+        body.lang-en [lang="en"] {
+            display: block;
+        }
+
+        body.lang-zh [lang="zh"] {
+            display: block;
+        }
+
+        body.lang-en span[lang="en"],
+        body.lang-en a[lang="en"] {
+            display: inline;
+        }
+
+        body.lang-zh span[lang="zh"],
+        body.lang-zh a[lang="zh"] {
+            display: inline;
+        }
+
+        body.lang-en p[lang="en"],
+        body.lang-en div[lang="en"] {
+            display: block;
+        }
+
+        body.lang-zh p[lang="zh"],
+        body.lang-zh div[lang="zh"] {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="lang-zh">
+    <header>
+        <div id="header-left">
+            <nav class="breadcrumb">
+                <a href="about.html" lang="en">About</a>
+                <a href="about.html" lang="zh">关于</a>
+                <a href="how-to.html" lang="en">How-to</a>
+                <a href="how-to.html" lang="zh">玩法</a>
+                <a href="versions.html" lang="en">Versions</a>
+                <a href="versions.html" lang="zh">版本</a>
+            </nav>
+        </div>
+        <div id="header-center">
+            <h3>上大人</h3>
+        </div>
+        <div id="header-right">
+            <select id="lang-select" onchange="switchLanguage(this.value)">
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+    </header>
+
+    <main>
+        <h1 lang="en">About Shangdaren</h1>
+        <h1 lang="zh">关于上大人</h1>
+
+        <section class="section-card">
+            <div lang="en">
+                <p>Shangdaren (上大人) is a traditional Chinese card game commonly played in
+                    rural areas of Hubei and surrounding provinces. It uses a unique deck of 24
+                    characters (organized in 8 suits, 3 cards in each suit) representing a
+                    traditional literacy tablet for children.</p>
+
+                <p>The Chinese characters are picked to broadly remind players of the
+                    background and teachings of ancient Chinese philosopher, Confucius.</p>
+            </div>
+            <div lang="zh">
+                <p>上大人 (Shangdaren) 是一种在湖北农村及周边省份广泛流传的传统纸牌游戏。它使用一套由24个汉字组成的独特牌阵（分为8个系列，每个系列3张牌），这套牌阵模仿了古代儿童识字的字帖。</p>
+
+                <p>牌面上的汉字经过精心挑选，旨在让玩家通过游戏联想到中国古代伟大的哲学家孔子的生平及其教诲。</p>
+            </div>
+        </section>
+
+        <section class="section-card">
+            <h2 lang="en">Confucius (孔子)</h2>
+            <h2 lang="zh">孔子 (Confucius)</h2>
+
+            <div lang="en">
+                <p>Confucius is one of the greatest philosophers and educators in Chinese history. His thoughts have not
+                    only shaped Chinese culture but also deeply influenced social norms across East Asia.</p>
+
+                <h3>Historical Background</h3>
+                <p>Confucius (born Kong Qiu, courtesy name Zhongni) was born in Zou (now Qufu, Shandong) during the
+                    Spring and Autumn period. Despite living in a volatile era, he was dedicated to restoring societal
+                    order through education and moral reform.</p>
+                <p>Records state that Confucius had three thousand disciples, of whom seventy-two were masters of the
+                    "Six Arts". His massive private lectures broke the government's monopoly on education, allowing
+                    ordinary people access to learning.</p>
+
+                <h3>Core Teachings</h3>
+                <p>His teachings are known as Confucianism, with key pillars including:</p>
+                <ul>
+                    <li><strong>Li (Ritual/Etiquette):</strong> The backbone of his thought. It refers not just to
+                        rituals, but to a system of social protocols.</li>
+                    <li><strong>Hierarchy and Order:</strong> He emphasized roles like "king as king, subject as
+                        subject, father as father, son as son" to maintain harmony.</li>
+                    <li><strong>Xiao (Filial Piety):</strong> The root of benevolence. Moral character begins with
+                        loyalty and love within the family.</li>
+                    <li><strong>Self-Cultivation:</strong> He pursued the state of "Ren" (Benevolence) and encouraged
+                        becoming a "Junzi" (Gentleman) through continuous learning.</li>
+                </ul>
+
+                <h3>The Game: Shangdaren</h3>
+                <p>Interestingly, Confucius's influence permeated folk entertainment. In the Hubei region, the ancient
+                    game "Shangdaren" remains popular.</p>
+                <p>The cards represent a mnemonic that ancient students used to practice calligraphy:</p>
+                <p style="font-style: italic; text-align: center; color: var(--primary-color);">"Shang Da Ren, Kong
+                    (Qiu) Yi Ji, Hua San Qian, Qi Shi Shi, Er Xiao Sheng, Ba Jiu Zi, Jia Zuo Ren, Ke Zhi Li."</p>
+                <p>These 24 characters ingeniously weave the life of Confucius into a rhyme for memory and play.</p>
+            </div>
+
+            <div lang="zh">
+                <p>孔子 (Confucius) 是中国历史上最伟大的哲学家和教育家之一。他的思想不仅塑造了中国文化，还深深影响了东亚的社会准则。</p>
+
+                <h3>历史背景</h3>
+                <p>孔子名丘，字仲尼。他出生于春秋时期的鲁国陬邑（今山东省曲阜市）。尽管他生活在一个动荡的时代，但他致力于通过教育和道德改革来恢复社会的秩序。</p>
+
+                <p>据记载，孔子门下有弟子三千，其中精通“六艺”的贤人有七十二位。这种大规模的私人讲学打破了“学在官府”的垄断，让普通人也有了受教育的机会。</p>
+
+                <h3>核心教义</h3>
+                <p>孔子的学说被称为儒家思想，其核心可以概括为以下几点：</p>
+
+                <ul>
+                    <li><strong>礼：</strong> 这是孔子思想的支柱。它不仅指祭祀仪式，更是一套规范社会行为的礼节和制度。</li>
+                    <li><strong>等级与秩序：</strong> 他强调“君君、臣臣、父父、子子”，即每个人都应认清自己的位置，并履行责任。</li>
+                    <li><strong>孝：</strong> “孝”是仁之本。孔子认为，一个人如果能在家中孝顺父母，在社会上才可能成为有道德的人。</li>
+                    <li><strong>做人之道：</strong> 他追求“仁”的境界，鼓励人们通过自我修养成为“君子”。</li>
+                </ul>
+
+                <h3>文化延伸：纸牌“上大人”</h3>
+                <p>有趣的是，孔子的影响力甚至渗透到了民间的娱乐活动中。在湖北地区，“上大人”纸牌游戏经久不衰。</p>
+                <p>这种纸牌的牌面文字通常是一句古代学童练习书法时使用的顺口溜：</p>
+                <p style="font-style: italic; text-align: center; color: var(--primary-color);">
+                    “上大人，孔（丘）乙己，化三千，七十士，尔小生，八九子，佳作仁，可知礼。”</p>
+                <p>这短短的二十四个字将孔子的生平巧妙地串联起来了。</p>
+            </div>
+        </section>
+
+        <a href="index.html" class="back-link">
+            <span lang="en">← Back to Game</span>
+            <span lang="zh">← 返回游戏</span>
+        </a>
+    </main>
+
+    <footer>
+        <span lang="en">&copy; 2026 Shangdaren App. Ancient Teachings, Modern Play.</span>
+        <span lang="zh">&copy; 2026 上大人 App。古老智慧，现代玩法。</span>
+    </footer>
+
+    <script>
+        function switchLanguage(lang) {
+            document.body.className = 'lang-' + lang;
+            localStorage.setItem('language', lang);
+            document.getElementById('lang-select').value = lang;
+        }
+
+        // Initialize from localStorage (compatible with main.js)
+        const savedLang = localStorage.getItem('language') || 'zh';
+        switchLanguage(savedLang);
+    </script>
+</body>
+
+</html>

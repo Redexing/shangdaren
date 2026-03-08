@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shangdaren Card Game</title>
+    <link rel="stylesheet" href="src/css/style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <div id="header-left">
+                <nav class="breadcrumb">
+                    <a href="about.html" id="link-about">About</a>
+                    <a href="how-to.html" id="link-how-to">How-to</a>
+                    <a href="versions.html" id="link-versions">Versions</a>
+                </nav>
+            </div>
+            <div id="header-center">
+                <h3>上大人</h3>
+            </div>
+            <div id="header-right">
+                <!-- Language selector will be moved here by JS -->
+                <div id="header-settings"></div>
+            </div>
+        </header>
+
+        <main id="game-board" class="game-board">
+            <div id="players-area">
+                <!-- Player specific areas -->
+            </div>
+        </main>
+
+        <footer id="dashboard">
+            <div id="dashboard-left"></div>
+            <div id="community-area">
+                <div id="deck-area" class="pile">Deck</div>
+                <div id="center-discard" class="pile">Center Discard</div>
+            </div>
+            <div id="controls">
+                <!-- Dynamic buttons added by JS -->
+            </div>
+        </footer>
+    </div>
+    <script type="module" src="src/js/main.js"></script>
+</body>
+
+</html>
