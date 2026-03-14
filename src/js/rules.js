@@ -201,9 +201,15 @@ export class Rules {
         const allCards = [...hand];
         if (activeCard) allCards.push(activeCard);
 
-        exposed.forEach(meld => allCards.push(...meld.cards));
+        let expectedLength = 16;
+        exposed.forEach(meld => {
+            allCards.push(...meld.cards);
+            if (meld.type === 'KAI-ZAO' || meld.type === 'XIA-CE') {
+                expectedLength += 1;
+            }
+        });
 
-        if (allCards.length !== 16) return false;
+        if (allCards.length !== expectedLength) return false;
 
         const partition = this.findPerfectPartition(allCards, 2);
         if (!partition) return false;
@@ -310,61 +316,66 @@ export class Rules {
             });
         }
 
-        // 5. CHI / KOU / Upgrades
-        if (isSelf) {
-            const kouInExposed = exposed.filter(m => m.type === 'KOU');
-            const suiteInHand = hand.filter(c => c.suiteIndex === card.suiteIndex);
+        const kouInExposed = exposed.filter(m => m.type === 'KOU');
+        const allSuiteCardsInHand = hand.filter(c => c.suiteIndex === card.suiteIndex);
 
-            // 5a. CHI (Complete Suite)
-            const needed = [0, 1, 2].filter(i => i !== card.characterIndex);
-            const c1 = hand.find(c => c.suiteIndex === card.suiteIndex && c.characterIndex === needed[0]);
-            const c2 = hand.find(c => c.suiteIndex === card.suiteIndex && c.characterIndex === needed[1]);
-            if (c1 && c2) {
-                // Determine if this CHI forms a "New" suite or just redundant
-                const counts = [0, 0, 0];
-                const suiteCards = [...hand, ...exposed.flatMap(m => m.cards)].filter(c => c.suiteIndex === card.suiteIndex);
-                suiteCards.forEach(c => counts[c.characterIndex]++);
-                const oldSuites = Math.min(counts[0], counts[1], counts[2]);
-                const nextCounts = [...counts];
-                nextCounts[card.characterIndex]++;
-                const newSuites = Math.min(nextCounts[0], nextCounts[1], nextCounts[2]);
+        // 5a. CHI (Complete Suite)
+        const needed = [0, 1, 2].filter(i => i !== card.characterIndex);
+        const c1 = hand.find(c => c.suiteIndex === card.suiteIndex && c.characterIndex === needed[0]);
+        const c2 = hand.find(c => c.suiteIndex === card.suiteIndex && c.characterIndex === needed[1]);
 
-                if (newSuites > oldSuites) {
+        if (c1 && c2) {
+            // Determine if this CHI forms a "New" suite or just redundant
+            const counts = [0, 0, 0];
+            const allSuiteCards = [...hand, ...exposed.flatMap(m => m.cards)].filter(c => c.suiteIndex === card.suiteIndex);
+            allSuiteCards.forEach(c => counts[c.characterIndex]++);
+            const oldSuites = Math.min(counts[0], counts[1], counts[2]);
+            const nextCounts = [...counts];
+            nextCounts[card.characterIndex]++;
+            const newSuites = Math.min(nextCounts[0], nextCounts[1], nextCounts[2]);
+
+            if (newSuites > oldSuites) {
+                // Rule check: No breaking 3-of-a-kind or 4-of-a-kind to form a CHI
+                const c1HandCount = hand.filter(c => c.typeId === c1.typeId).length;
+                const c2HandCount = hand.filter(c => c.typeId === c2.typeId).length;
+
+                if (c1HandCount < 3 && c2HandCount < 3) {
                     moves.push({ type: 'CHI', cards: [c1, c2] });
                 }
             }
+        }
 
-            // CHI onto KOU in exposed
-            kouInExposed.forEach(meld => {
-                if (meld.cards[0].suiteIndex === card.suiteIndex) {
-                    const indices = meld.cards.map(c => c.characterIndex);
-                    if (!indices.includes(card.characterIndex)) {
-                        moves.push({ type: 'CHI', cards: [], meldRef: meld });
-                    }
+        // CHI onto KOU in exposed
+        kouInExposed.forEach(meld => {
+            if (meld.cards[0].suiteIndex === card.suiteIndex) {
+                const indices = meld.cards.map(c => c.characterIndex);
+                if (!indices.includes(card.characterIndex)) {
+                    moves.push({ type: 'CHI', cards: [], meldRef: meld });
                 }
-            });
+            }
+        });
 
-            // 5b. KOU (2 different cards of same suite)
-            if (kouInExposed.length < 2 && !suiteBroken && moves.length === 0) {
-                const others = [0, 1, 2].filter(i => i !== card.characterIndex);
-                const sCounts = [0, 0, 0];
-                suiteInHand.forEach(c => sCounts[c.characterIndex]++);
+        // 5b. KOU (2 different cards of same suite) - Optional, allowed for turn and interrupters? 
+        // Based on test Case q, it should be available even if isSelf is false.
+        if (kouInExposed.length < 2 && !suiteBroken && moves.length === 0) {
+            const others = [0, 1, 2].filter(i => i !== card.characterIndex);
+            const sCounts = [0, 0, 0];
+            allSuiteCardsInHand.forEach(c => sCounts[c.characterIndex]++);
 
-                // Try to find a partner who is redundant in hand first
-                let partnerChar = others.find(i => sCounts[i] > 1);
-                if (partnerChar === undefined) {
-                    partnerChar = others.find(i => sCounts[i] > 0);
-                }
+            // Try to find a partner who is redundant in hand first
+            let partnerChar = others.find(i => sCounts[i] > 1);
+            if (partnerChar === undefined) {
+                partnerChar = others.find(i => sCounts[i] > 0);
+            }
 
-                if (partnerChar !== undefined) {
-                    // Redundancy check: if we already have the drawn card and only one of the partner, 
-                    // taking KOU is just swapping cards and potentially breaking our hand structure.
-                    if (sCounts[card.characterIndex] > 0 && sCounts[partnerChar] === 1) {
-                        // Skip redundant KOU
-                    } else {
-                        const partner = suiteInHand.find(c => c.characterIndex === partnerChar);
-                        moves.push({ type: 'KOU', cards: [partner] });
-                    }
+            if (partnerChar !== undefined) {
+                // Redundancy check: if we already have the drawn card and only one of the partner, 
+                // taking KOU is just swapping cards and potentially breaking our hand structure.
+                if (sCounts[card.characterIndex] > 0 && sCounts[partnerChar] === 1) {
+                    // Skip redundant KOU
+                } else {
+                    const partner = allSuiteCardsInHand.find(c => c.characterIndex === partnerChar);
+                    moves.push({ type: 'KOU', cards: [partner] });
                 }
             }
         }
@@ -381,3 +392,4 @@ export class Rules {
         return moves;
     }
 }
+
