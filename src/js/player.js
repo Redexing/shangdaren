@@ -14,6 +14,7 @@ export class Player {
     }
 
     loadStats() {
+        if (typeof localStorage === 'undefined') return;
         try {
             const stats = JSON.parse(localStorage.getItem(`shangdaren_stats_${this.name}`));
             if (stats) {
@@ -26,6 +27,7 @@ export class Player {
     }
 
     saveStats() {
+        if (typeof localStorage === 'undefined') return;
         try {
             localStorage.setItem(`shangdaren_stats_${this.name}`, JSON.stringify({
                 wins: this.wins,
