@@ -1,0 +1,12 @@
+# PWA Package
+ShangDaRen_v*.zip
+shangdaren_game_pwa.zip
+
+# IDE/Tooling
+.gemini/
+.DS_Store
+*.log
+
+# Dependencies
+node_modules/
+package-lock.json
