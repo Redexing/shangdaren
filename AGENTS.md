@@ -123,10 +123,11 @@ A player wins immediately by declaring **HARMONY** (`Rules.canDeclareHarmony`) i
 1. **Total Cards**: Must equal $16 + \text{exposedQuadsCount}$ (15 in hand + 1 incoming drawn/passed card, plus 1 extra card for each exposed 4-of-a-kind quad).
 2. **Full Partition**: Every single card fits into valid melds (`Rules.findPerfectPartition`).
 3. **Exact 2 KOU Rule**: Partition must contain **exactly 2 KOU** melds (Half-Dragon/Half-Snake counts as 1 KOU).
-4. **Score Threshold**: Total points $\ge 10$ Fu (福) (`SCORE_THRESHOLD = 10`).
+4. **Score Threshold**: Total points $\ge 10$ Fu (福) (`SCORE_THRESHOLD = 10`). **Waived** when every card in the winning set (hand + exposed + incoming card) is a veggie card.
 
 ### 3.4 Mandatory Action Hierarchy & Special Rules
 - **Must-Claim Actions**: `SAO`, `PENG`, `CHI`, `KAI-ZAO`, `XIA-CE`, `DRAGON`, `SNAKE`, `HALF-DRAGON`, `HALF-SNAKE`. If any of these are possible, the player **cannot pass** (`PASS` button is omitted).
+- **Harmony Claim**: `HARMONY` is must-claim when the completing card is self-drawn or drawn/passed by the upstream player (right). It is optional (can `PASS`/`DECLINE`) when the downstream player (left) draws it. CHI/KOU are not draw-interrupts.
 - **Optional Actions**: `KOU` is optional.
 - **Bao-Zi (包子) Condition**: When forming a meld that requires a discard, if a player's hand has 0 cards left to discard, that player triggers "Bao-Zi". The triggering player loses immediately; all other players win.
 - **Rule 6 (Passed Card Reclamation)**: If a card previously placed in a player's `passedCards` is claimed by another player to form a meld, it is pruned from the passer's `passedCards`.

@@ -215,7 +215,14 @@ export class Rules {
         if (!partition) return false;
 
         const points = this.calculateTotalPoints(partition);
-        return points >= SCORE_THRESHOLD;
+        if (points >= SCORE_THRESHOLD) return true;
+
+        // Issue #2: an all-veggie winning set waives the 10-fu threshold.
+        return this.isAllVeggie(allCards);
+    }
+
+    static isAllVeggie(cards) {
+        return Array.isArray(cards) && cards.length > 0 && cards.every(c => !this.isMeat(c.suiteIndex));
     }
 
     static findMeldsInHand(hand) {
@@ -380,7 +387,14 @@ export class Rules {
             }
         }
 
+        if (this.canDeclareHarmony(hand, exposed, card)) {
+            if (!moves.some(m => m.type === 'HARMONY')) {
+                moves.push({ type: 'HARMONY', cards: [] });
+            }
+        }
+
         // Must-trigger rules: PENG, SAO, CHI, etc. are mandatory.
+        // HARMONY must-vs-choice depends on who drew the card (handled in game.js).
         // PASS is only allowed if no mandatory moves are present.
         const mandatoryTypes = ['SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'];
         const hasMandatory = moves.some(m => mandatoryTypes.includes(m.type));

@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-globals */
-const CACHE_NAME = 'shangdaren-v1';
+const CACHE_NAME = 'shangdaren-v2';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

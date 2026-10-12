@@ -128,43 +128,64 @@ export class Game {
     }
 
     calculateActions(card) {
-        // Check actions for Current Player (Drawer)
+        const interruptTypes = new Set([
+            'HARMONY', 'PENG', 'SAO', 'XIA-CE', 'KAI-ZAO',
+            'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'
+        ]);
+
+        const allActions = new Map();
         const currentP = this.getCurrentPlayer();
         const currentActions = Rules.getActions(currentP.hand, card, true, currentP.exposed, currentP.discards);
+        this.ensureHarmonyAction(currentActions, currentP, card);
+        this.applyPassPolicy(currentActions, this.currentPlayerIndex);
+        allActions.set(this.currentPlayerIndex, currentActions);
 
-        // Check Harmony for Drawer
-        if (Rules.canDeclareHarmony(currentP.hand, currentP.exposed, card)) {
-            currentActions.push({ type: 'HARMONY', cards: [] });
-        }
-
-        // Add PASS for Drawer
-        currentActions.push({ type: 'PASS', cards: [] });
-
-        // Check actions for Others (Interrupts)
-        const allActions = new Map();
-
-        // Drawer Actions
-        if (currentActions.length > 0) {
-            allActions.set(this.currentPlayerIndex, currentActions);
-        }
-
-        // Others (PENG/SAO)
+        // Others may interrupt with Harmony, trips, or quads — not CHI/KOU.
         for (let i = 1; i < 3; i++) {
             const idx = (this.currentPlayerIndex + i) % 3;
             const p = this.players[idx];
-            const moves = Rules.getActions(p.hand, card, false, p.exposed, p.discards);
-
-            // Rule 8: Interrupting with Harmony
-            if (Rules.canDeclareHarmony(p.hand, p.exposed, card)) {
-                moves.push({ type: 'HARMONY', cards: [] });
-            }
-
+            let moves = Rules.getActions(p.hand, card, false, p.exposed, p.discards);
+            this.ensureHarmonyAction(moves, p, card);
+            moves = moves.filter(m => interruptTypes.has(m.type));
+            this.applyPassPolicy(moves, idx);
             if (moves.length > 0) {
                 allActions.set(idx, moves);
             }
         }
 
         return allActions;
+    }
+
+    ensureHarmonyAction(actions, player, card) {
+        if (Rules.canDeclareHarmony(player.hand, player.exposed, card)
+            && !actions.some(a => a.type === 'HARMONY')) {
+            actions.push({ type: 'HARMONY', cards: [] });
+        }
+    }
+
+    // Harmony is must-claim on a self-drawn tile or one from the upstream (right) player.
+    // It is optional when the downstream (left) player draws it.
+    isWinningTileMustClaim(playerIndex) {
+        const upstream = (playerIndex + 2) % 3;
+        if (this.activeCardSource === 'DECK' || this.activeCardSource === null) {
+            return this.currentPlayerIndex === playerIndex || this.currentPlayerIndex === upstream;
+        }
+        return this.activeCardSource === playerIndex || this.activeCardSource === upstream;
+    }
+
+    applyPassPolicy(actions, playerIndex) {
+        const mandatoryMeldTypes = ['SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'];
+        const hasMandatoryMeld = actions.some(m => mandatoryMeldTypes.includes(m.type));
+        const hasHarmony = actions.some(m => m.type === 'HARMONY');
+        const harmonyMust = hasHarmony && this.isWinningTileMustClaim(playerIndex);
+
+        for (let i = actions.length - 1; i >= 0; i--) {
+            if (actions[i].type === 'PASS') actions.splice(i, 1);
+        }
+
+        if (!hasMandatoryMeld && !harmonyMust) {
+            actions.push({ type: 'PASS', cards: [] });
+        }
     }
 
     // Process actions after Draw
@@ -175,10 +196,12 @@ export class Game {
         const humanIdx = this.players.findIndex(p => p.isHuman);
         const humanActions = actionMap.get(humanIdx) || [];
 
-        // Rule 2: Always wait for Human to see and "Decline" or Action if not in watch mode
+        // Wait for the human to act or decline, but do not add PASS over a must-claim.
         if (!this.isWatchMode && humanIdx !== -1) {
-            // Ensure PASS is always available for human if it's not already there
-            if (!humanActions.find(a => a.type === 'PASS')) {
+            const mustClaim = humanActions.some(a => ['SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'].includes(a.type))
+                || (humanActions.some(a => a.type === 'HARMONY') && this.isWinningTileMustClaim(humanIdx));
+
+            if (!mustClaim && !humanActions.find(a => a.type === 'PASS')) {
                 humanActions.push({ type: 'PASS', cards: [] });
                 actionMap.set(humanIdx, humanActions);
             }
@@ -293,29 +316,13 @@ export class Game {
                     this.highlightedCards = [];
                     const nextIdx = (playerIndex + 1) % 3;
                     const nextP = this.players[nextIdx];
-                    const actions = Rules.getActions(nextP.hand, card, true, nextP.exposed, nextP.discards);
-
-                    // Rule 8: Harmony from passed
-                    if (Rules.canDeclareHarmony(nextP.hand, nextP.exposed, card)) {
-                        if (!actions.find(a => a.type === 'HARMONY')) actions.push({ type: 'HARMONY', cards: [] });
-                    }
-
-                    // Mandatory CHI check
-                    const chiAction = actions.find(a => a.type === 'CHI');
-                    if (chiAction) {
+                    this.currentPlayerIndex = nextIdx;
+                    this.activeCard = card;
+                    const receiverActions = this.calculateActions(card).get(nextIdx) || [];
+                    if (receiverActions.some(a => a.type === 'CHI')) {
                         this.log(`Mandatory CHI for ${nextP.name}!`);
-                        const finalActions = actions.filter(a => a.type === 'CHI' || a.type === 'HARMONY');
-                        this.currentPlayerIndex = nextIdx;
-                        this.activeCard = card;
-                        this.pendingActions = new Map([[nextIdx, finalActions]]);
-                    } else {
-                        if (!actions.find(a => a.type === 'PASS')) {
-                            actions.push({ type: 'PASS', cards: [] });
-                        }
-                        this.currentPlayerIndex = nextIdx;
-                        this.activeCard = card;
-                        this.pendingActions = new Map([[nextIdx, actions]]);
                     }
+                    this.pendingActions = new Map([[nextIdx, receiverActions]]);
 
                     if (!nextP.isHuman || this.isWatchMode) {
                         // Emit STATE_CHANGE so the carousel can scroll to nextIdx

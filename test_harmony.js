@@ -1,6 +1,44 @@
 import { Card } from './src/js/card.js';
 import { Rules } from './src/js/rules.js';
 
+const VEG_SUITE_4 = 6; // 佳, 作, 仁
+const VEG_SUITE_5 = 7; // 可, 知, 礼
+
+let fixtureId = 500;
+const nextFixtureId = () => fixtureId++;
+
+function card(suiteIndex, characterIndex) {
+    return new Card(nextFixtureId(), suiteIndex, characterIndex);
+}
+
+function trip(suiteIndex, characterIndex) {
+    return [card(suiteIndex, characterIndex), card(suiteIndex, characterIndex), card(suiteIndex, characterIndex)];
+}
+
+/**
+ * Reconstructs the GitHub issue #1 screenshot:
+ * exposed CHI 可知礼, SAO 小小小, KOU 佳仁, SAO 生生生;
+ * hand 十土八九; active 作. All veggie, 8 fu, exactly 2 KOU after taking 作.
+ */
+export function buildScreenshotHarmonyState() {
+    fixtureId = 500;
+    return {
+        hand: [
+            card(3, 1), // 十
+            card(3, 2), // 土
+            card(5, 0), // 八
+            card(5, 1)  // 九
+        ],
+        exposed: [
+            { type: 'CHI', cards: [card(VEG_SUITE_5, 0), card(VEG_SUITE_5, 1), card(VEG_SUITE_5, 2)] },
+            { type: 'SAO', cards: trip(4, 1) },
+            { type: 'KOU', cards: [card(VEG_SUITE_4, 0), card(VEG_SUITE_4, 2)] }, // 佳, 仁
+            { type: 'SAO', cards: trip(4, 2) }
+        ],
+        activeCard: card(VEG_SUITE_4, 1) // 作
+    };
+}
+
 export function runHarmonyTests() {
     console.log("Running Rules.canDeclareHarmony tests...");
 
@@ -185,6 +223,53 @@ export function runHarmonyTests() {
             exposed: [],
             activeCard: null,
             expected: true // Total pts: 14 + 0 + 0 + 0 + 3 = 17 pts >= 10
+        },
+        {
+            name: "Valid all-veggie Harmony waives the 10-fu threshold (0 points)",
+            hand: [
+                ...makeKou(VEG_SUITE_1, 0, 1), // 0 pts
+                ...makeKou(VEG_SUITE_2, 0, 1), // 0 pts
+                ...makeChi(VEG_SUITE_1),       // 0 pts
+                ...makeChi(VEG_SUITE_2),       // 0 pts
+                ...makeChi(VEG_SUITE_3),       // 0 pts
+                ...makeChi(6)                  // suite 佳作仁, 0 pts
+            ],
+            exposed: [],
+            activeCard: null,
+            expected: true
+        },
+        {
+            name: "Issue #1/#2 screenshot: all-veggie 8-fu hand can Harmony on 作",
+            ...buildScreenshotHarmonyState(),
+            expected: true
+        },
+        {
+            name: "All-veggie still requires a perfect partition with exactly 2 KOU",
+            hand: [
+                ...makeKou(VEG_SUITE_1, 0, 1),
+                ...makeKou(VEG_SUITE_2, 0, 1),
+                ...makeKou(VEG_SUITE_3, 0, 1), // 3 KOUs
+                ...makeChi(VEG_SUITE_1),
+                ...makeChi(VEG_SUITE_2),
+                new Card(getNextId(), 6, 0)
+            ],
+            exposed: [],
+            activeCard: null,
+            expected: false
+        },
+        {
+            name: "Meat cards still require 10 fu even with a valid 2-KOU partition",
+            hand: [
+                ...makeKou(VEG_SUITE_1, 0, 1), // 0 pts
+                ...makeKou(VEG_SUITE_2, 0, 1), // 0 pts
+                ...makeChi(MEAT_SUITE_1),      // 3 pts
+                ...makeChi(MEAT_SUITE_2),      // 3 pts
+                ...makeChi(MEAT_SUITE_3),      // 3 pts
+                ...makeChi(VEG_SUITE_3)        // 0 pts  => 9 total
+            ],
+            exposed: [],
+            activeCard: null,
+            expected: false
         }
     ];
 

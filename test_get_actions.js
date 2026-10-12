@@ -1,5 +1,6 @@
 import { Card } from './src/js/card.js';
 import { Rules } from './src/js/rules.js';
+import { buildScreenshotHarmonyState } from './test_harmony.js';
 
 export function runGetActionsTests() {
     console.log("Running refined getActions tests...");
@@ -259,7 +260,18 @@ export function runGetActionsTests() {
             card: new Card(62, suite5Idx, 1), // 小
             isSelf: true,
             expected: ['KOU', 'PASS']
-        }
+        },
+        (() => {
+            const state = buildScreenshotHarmonyState();
+            return {
+                name: "All-veggie ready hand offers HARMONY on 作",
+                hand: state.hand,
+                card: state.activeCard,
+                isSelf: true,
+                exposed: state.exposed,
+                expected: ['CHI', 'HARMONY']
+            };
+        })()
     ];
 
     testCases.forEach(tc => {
