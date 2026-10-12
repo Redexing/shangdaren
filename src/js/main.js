@@ -45,7 +45,11 @@ function init() {
         console.log(`[GAME] ${msg}`);
     });
     game.on(EVENTS.GAME_OVER, (result) => {
-        let msg = `${t('Game Over! Winner: ')}${result.winner ? result.winner.name : t('None')}`;
+        const winnerName = result.winner ? result.winner.name : t('None');
+        let msg = `${t('Game Over! Winner: ')}${winnerName}`;
+        if (result.winner && result.rewards) {
+            msg += ` [${t('Reward')}: ${result.rewards}]`;
+        }
         if (result.special === 'BAO-ZI') {
             const rawName = result.triggerPlayer ? result.triggerPlayer.name : '';
             const translatedTriggerName = rawName.split(' ').map(part => t(part)).join(' ');
@@ -176,7 +180,7 @@ function playerFingerprint() {
     const highlights = (game.highlightedCards || []).map(c => c.id).sort().join(',');
     const selAction = selectedAction ? selectedAction.type : 'none';
     return game.players.map(p =>
-        `${p.hand.length}|${p.exposed.length}|${p.discards.length}|${p.passedCards.length}`
+        `${p.hand.length}|${p.exposed.length}|${p.discards.length}|${p.passedCards.length}|${p.wins}|${p.totalGames}|${p.totalRewards}`
     ).join('/') + `@${game.currentPlayerIndex}@${game.turnPhase}@hl:${highlights}@sel:${selectedHandIndex}@act:${selAction}`;
 }
 
@@ -269,8 +273,10 @@ function renderPlayers() {
         const ptValue = p.calculatePoints(Rules);
         const ptStr = showPoints ? ` | ${t('Points')}: ${ptValue}` : '';
         const translatedName = p.name.split(' ').map(part => t(part)).join(' ');
-        const winPct = p.getWinPercentage().toFixed(1);
-        info.innerHTML = `<strong>${translatedName}</strong> [${t('Win %')}: ${winPct}%] [${t('Cards')}: ${p.hand.length}]${ptStr}`;
+        const winPct = Math.round(p.getWinPercentage());
+        const rewards = p.totalRewards || 0;
+        info.title = `${t('Win %')}: ${winPct}%, ${t('Reward')}: ${rewards}`;
+        info.innerHTML = `<strong>${translatedName}</strong> [${winPct}%, ${rewards}] [${t('Cards')}: ${p.hand.length}]${ptStr}`;
 
         if (pIdx === game.currentPlayerIndex) {
             const arrow = document.createElement('span');
@@ -578,8 +584,11 @@ function onActionClick(type) {
         // In this game, most melds still require a discard unless it's a quad
     }
 
-    // For simplicity, handle skip discard if rule matches
+    // Quads do not discard. Any other meld with no legal discard is baozi.
     if (['KAI-ZAO', 'XIA-CE'].includes(type)) {
+        game.confirmHumanMeld(action, -1);
+        selectedAction = null;
+    } else if (Rules.firstLegalDiscardIndex(game.handAfterMeldClaim(game.players[0].hand, action)) === -1) {
         game.confirmHumanMeld(action, -1);
         selectedAction = null;
     } else {

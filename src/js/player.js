@@ -10,6 +10,7 @@ export class Player {
 
         this.wins = 0;
         this.totalGames = 0;
+        this.totalRewards = 0;
         this.loadStats();
     }
 
@@ -20,6 +21,7 @@ export class Player {
             if (stats) {
                 this.wins = stats.wins || 0;
                 this.totalGames = stats.totalGames || 0;
+                this.totalRewards = stats.totalRewards || 0;
             }
         } catch (e) {
             console.error("Failed to load stats for " + this.name, e);
@@ -31,7 +33,8 @@ export class Player {
         try {
             localStorage.setItem(`shangdaren_stats_${this.name}`, JSON.stringify({
                 wins: this.wins,
-                totalGames: this.totalGames
+                totalGames: this.totalGames,
+                totalRewards: this.totalRewards
             }));
         } catch (e) {
             console.error("Failed to save stats for " + this.name, e);

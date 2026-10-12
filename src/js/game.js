@@ -135,8 +135,9 @@ export class Game {
 
         const allActions = new Map();
         const currentP = this.getCurrentPlayer();
-        const currentActions = Rules.getActions(currentP.hand, card, true, currentP.exposed, currentP.discards);
-        this.ensureHarmonyAction(currentActions, currentP, card);
+        const drawerSelfDraw = this.isSelfDrawFor(this.currentPlayerIndex);
+        const currentActions = Rules.getActions(currentP.hand, card, true, currentP.exposed, currentP.discards, { isSelfDraw: drawerSelfDraw });
+        this.ensureHarmonyAction(currentActions, currentP, card, drawerSelfDraw);
         this.applyPassPolicy(currentActions, this.currentPlayerIndex);
         allActions.set(this.currentPlayerIndex, currentActions);
 
@@ -144,8 +145,8 @@ export class Game {
         for (let i = 1; i < 3; i++) {
             const idx = (this.currentPlayerIndex + i) % 3;
             const p = this.players[idx];
-            let moves = Rules.getActions(p.hand, card, false, p.exposed, p.discards);
-            this.ensureHarmonyAction(moves, p, card);
+            let moves = Rules.getActions(p.hand, card, false, p.exposed, p.discards, { isSelfDraw: false });
+            this.ensureHarmonyAction(moves, p, card, false);
             moves = moves.filter(m => interruptTypes.has(m.type));
             this.applyPassPolicy(moves, idx);
             if (moves.length > 0) {
@@ -156,8 +157,14 @@ export class Game {
         return allActions;
     }
 
-    ensureHarmonyAction(actions, player, card) {
-        if (Rules.canDeclareHarmony(player.hand, player.exposed, card)
+    // Self-draw means this player drew the completing card from the deck.
+    // A card passed by someone else, or drawn by another player, is not a self-draw.
+    isSelfDrawFor(playerIndex) {
+        return this.activeCardSource === 'DECK' && this.currentPlayerIndex === playerIndex;
+    }
+
+    ensureHarmonyAction(actions, player, card, isSelfDraw) {
+        if (Rules.canDeclareHarmony(player.hand, player.exposed, card, { isSelfDraw })
             && !actions.some(a => a.type === 'HARMONY')) {
             actions.push({ type: 'HARMONY', cards: [] });
         }
@@ -386,7 +393,10 @@ export class Game {
 
     handleHarmony(playerIndex, card) {
         const p = this.players[playerIndex];
-        this.log(`${p.name} declares HARMONY!`);
+        const reward = Rules.calculateRewards(p.hand, p.exposed, card, {
+            isSelfDraw: this.isSelfDrawFor(playerIndex)
+        });
+        this.log(`${p.name} declares HARMONY! Rewards: ${reward.total}`);
 
         // Finalize state: Add all cards to exposed for visualization
         const allCards = [...p.hand];
@@ -404,7 +414,7 @@ export class Game {
         this.emit(EVENTS.STATE_CHANGE);
 
         setTimeout(() => {
-            this.endGame({ winner: p });
+            this.endGame({ winner: p, rewards: reward.total });
         }, GAME_SPEEDS.HARMONY_CELEBRATION);
     }
 
@@ -447,31 +457,15 @@ export class Game {
         }
 
         // Check Harmony
-        if (this.checkHarmony(player)) {
-            this.log(`${player.name} declares HARMONY!`);
-            this.endGame({ winner: player });
-            return;
-        }
+        if (this.finishHarmonyIfWon(player)) return;
 
         // 2. Discard (if not KAI-ZAO/XIA-CE/DRAGON/SNAKE etc)
         const skipDiscard = ['KAI-ZAO', 'XIA-CE'].includes(action.type);
 
         if (!skipDiscard) {
-            if (player.hand.length === 0) {
-                this.log(`${player.name} is BAO-ZI! (No cards to discard)`);
-                this.endGame({ winner: null, special: 'BAO-ZI', triggerPlayer: player });
-                return;
-            }
+            if (this.declareBaoziIfNoLegalDiscard(player)) return;
 
-            let disIdx = -1;
-            for (let i = 0; i < player.hand.length; i++) {
-                if (Rules.canDiscard(player.hand, i)) {
-                    disIdx = i;
-                    break;
-                }
-            }
-            if (disIdx === -1) disIdx = 0;
-
+            const disIdx = Rules.firstLegalDiscardIndex(player.hand);
             const disCard = player.discard(disIdx);
             player.addToDiscards(disCard, false);
             this.log(`${player.name} discarded ${disCard.toString()}`);
@@ -513,11 +507,15 @@ export class Game {
         let discardCard = null;
 
         if (!skipDiscard) {
-            if (discardCardIndex === -1) {
+            const prospective = this.handAfterMeldClaim(p.hand, action);
+            if (Rules.firstLegalDiscardIndex(prospective) === -1) {
+                discardCard = null;
+            } else if (discardCardIndex === -1) {
                 console.error("Discard required for " + action.type);
                 return;
+            } else {
+                discardCard = p.hand[discardCardIndex];
             }
-            discardCard = p.hand[discardCardIndex];
         } else {
             discardCard = null; // These types don't require discard
         }
@@ -574,21 +572,14 @@ export class Game {
         this.activeCard = null;
 
         // Check Harmony
-        if (this.checkHarmony(p)) {
-            this.log(`${p.name} declares HARMONY!`);
-            this.endGame({ winner: p });
-            return;
-        }
+        if (this.finishHarmonyIfWon(p)) return;
 
         const skipDiscard = ['KAI-ZAO', 'XIA-CE'].includes(action.type);
 
-        // 2. Discard
+        // 2. Discard. A must-meld with no legal discard is baozi, including a
+        // harmony-shaped hand that scores 0 rewards and therefore cannot win.
         if (!skipDiscard) {
-            if (p.hand.length === 0) {
-                this.log(`${p.name} is BAO-ZI! (No cards to discard)`);
-                this.endGame({ winner: null, special: 'BAO-ZI', triggerPlayer: p });
-                return;
-            }
+            if (this.declareBaoziIfNoLegalDiscard(p)) return;
             if (discardCard) {
                 const dIdx = p.hand.findIndex(c => c.id === discardCard.id);
                 if (dIdx !== -1) {
@@ -772,8 +763,36 @@ export class Game {
         this.handlePlayerDiscard(idx);
     }
 
+    handAfterMeldClaim(hand, action) {
+        if (!action || action.meldRef) return hand;
+        const claimedIds = new Set((action.cards || []).map(c => c.id));
+        return hand.filter(c => !claimedIds.has(c.id));
+    }
+
+    // The completing card is already part of the hand or an exposed meld.
+    finishHarmonyIfWon(player) {
+        const playerIndex = this.players.indexOf(player);
+        const reward = Rules.calculateRewards(player.hand, player.exposed, null, {
+            isSelfDraw: this.isSelfDrawFor(playerIndex)
+        });
+        if (reward.total < 1) return false;
+        this.log(`${player.name} declares HARMONY! Rewards: ${reward.total}`);
+        this.endGame({ winner: player, rewards: reward.total });
+        return true;
+    }
+
+    declareBaoziIfNoLegalDiscard(player) {
+        if (Rules.firstLegalDiscardIndex(player.hand) !== -1) return false;
+        this.log(`${player.name} is BAO-ZI! (No cards to discard)`);
+        this.endGame({ winner: null, special: 'BAO-ZI', triggerPlayer: player });
+        return true;
+    }
+
     checkHarmony(player) {
-        return Rules.canDeclareHarmony(player.hand, player.exposed, null);
+        const playerIndex = this.players.indexOf(player);
+        return Rules.canDeclareHarmony(player.hand, player.exposed, null, {
+            isSelfDraw: this.isSelfDrawFor(playerIndex)
+        });
     }
 
     getCurrentPlayer() {
@@ -797,10 +816,12 @@ export class Game {
                 }
             });
         } else if (result.winner) {
-            // A specific winner
+            // A specific winner. Rewards apply only to that player's harmonizing hand.
+            const earned = result.rewards || 0;
             this.players.forEach(p => {
                 if (p.name === result.winner.name) {
                     p.wins++;
+                    p.totalRewards += earned;
                 }
             });
         }
@@ -811,5 +832,6 @@ export class Game {
 
         // 4. Emit the event
         this.emit(EVENTS.GAME_OVER, result);
+        this.emit(EVENTS.STATE_CHANGE);
     }
 }
