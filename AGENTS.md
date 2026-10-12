@@ -269,3 +269,12 @@ Access the application at `http://localhost:8000`.
    - Do not bypass or break `playerFingerprint()`. If adding state that affects the hand or player area, update `playerFingerprint()` accordingly.
 6. **Zero Dependencies**:
    - Do not add `package.json` runtime dependencies or build steps. Keep the codebase running natively in any modern browser.
+
+---
+
+## Cursor Cloud specific instructions
+
+- There are no npm dependencies and no lockfile. Node.js and Python 3 from the base image are enough. The environment `install` command only prints `node --version` and `python3 --version`.
+- `npm test` runs `node test.js`. Those checks are headless and do not need the dev server.
+- The environment `start` script serves this repository with `python3 -m http.server 8000 --bind 0.0.0.0` when port 8000 is closed, and exits immediately when that port is already open. Open `http://127.0.0.1:8000/`.
+- Start a hand with **New Game (Play)** (`#btn-new-game`; Chinese label 新牌局). A bot may act before the human. **Draw** is `#btn-draw`.
