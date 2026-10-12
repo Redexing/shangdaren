@@ -4,6 +4,7 @@ import { Card } from './src/js/card.js';
 import { runGetActionsTests } from './test_get_actions.js';
 import { runHarmonyTests } from './test_harmony.js';
 import { runHarmonyActionTests } from './test_harmony_actions.js';
+import { runRewardTests } from './test_rewards.js';
 
 // Setup Mock Listeners
 const game = new Game();
@@ -81,5 +82,6 @@ if (Rules.canDiscard(hand4, 0) === false) {
 runGetActionsTests();
 runHarmonyTests();
 runHarmonyActionTests();
+runRewardTests();
 
 console.log('Basic game structure and rules are valid.');

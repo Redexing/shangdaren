@@ -48,7 +48,8 @@ export const TRANSLATIONS = {
         'About': '关于',
         'How-to': '玩法',
         'Versions': '版本',
-        'Win %': '胜场率'
+        'Win %': '胜场率',
+        'Reward': '大'
     },
     'en': {
         'KOU': 'KOU',
@@ -99,6 +100,7 @@ export const TRANSLATIONS = {
         'About': 'About',
         'How-to': 'How-to',
         'Versions': 'Versions',
-        'Win %': 'Win %'
+        'Win %': 'Win %',
+        'Reward': 'Reward'
     }
 };

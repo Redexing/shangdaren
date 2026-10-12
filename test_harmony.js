@@ -119,7 +119,7 @@ export function runHarmonyTests() {
             expected: false
         },
         {
-            name: "Valid Harmony with exposed melds and active card (11 points)",
+            name: "11-fu mixed hand cannot Harmony without a reward",
             hand: [
                 ...makeKou(MEAT_SUITE_1, 0, 1), // 2 pts
                 ...makeKou(MEAT_SUITE_2, 0, 1), // 2 pts
@@ -135,10 +135,10 @@ export function runHarmonyTests() {
                 }
             ],
             activeCard: new Card(getNextId(), VEG_SUITE_1, 2), // completes CHI
-            expected: true
+            expected: false
         },
         {
-            name: "Valid Harmony with active card turning CHI (in exposed) into two KOU",
+            name: "CHI split by an exposed extra card cannot Harmony without a reward",
             hand: [
                 ...makeChi(MEAT_SUITE_1), // 3 pts
                 ...makeTrip(MEAT_SUITE_2, 0), // 6 pts
@@ -152,10 +152,10 @@ export function runHarmonyTests() {
                 }
             ],
             activeCard: new Card(getNextId(), VEG_SUITE_2, 1), // turn exposed CHI into KOU
-            expected: true
+            expected: false
         },
         {
-            name: "Valid Harmony with active card turning CHI  (in hand) into two KOU",
+            name: "CHI split in hand cannot Harmony without a reward",
             hand: [
                 ...makeChi(MEAT_SUITE_1), // 3 pts
                 ...makeTrip(MEAT_SUITE_2, 0), // 6 pts
@@ -169,10 +169,10 @@ export function runHarmonyTests() {
                 }
             ],
             activeCard: new Card(getNextId(), MEAT_SUITE_1, 1), // turn hand CHI into KOU
-            expected: true
+            expected: false
         },
         {
-            name: "Valid Harmony with 17 cards due to XIA-CE",
+            name: "17-card XIA-CE hand cannot Harmony without a reward",
             hand: [
                 ...makeChi(MEAT_SUITE_1), // 3 pts
                 ...makeTrip(MEAT_SUITE_2, 0), // 6 pts
@@ -186,8 +186,8 @@ export function runHarmonyTests() {
                     cards: makeQuad(VEG_SUITE_2, 0)
                 }
             ],
-            activeCard: new Card(getNextId(), VEG_SUITE_1, 1), // turn hand CHI into KOU
-            expected: true
+            activeCard: new Card(getNextId(), VEG_SUITE_1, 1), // completes a veggie KOU
+            expected: false
         },
         {
             name: "Invalid Harmony (Hand cannot be perfectly partitioned with 2 KOU)",

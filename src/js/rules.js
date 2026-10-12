@@ -2,6 +2,22 @@
 import { ALL_SUITES } from './card.js';
 
 export const SCORE_THRESHOLD = 10;
+export const HIGH_SCORE_THRESHOLD = 20;
+
+// Four of a kind of these characters is worth one reward. No other character qualifies.
+export const REWARD_QUAD_CHARACTERS = ['上', '七', '可'];
+
+const REWARD_WEIGHTS = {
+    'exact-10': 1,
+    'all-veggie': 1,
+    'self-draw': 1,
+    'score-20': 1,
+    'dragon-snake': 1,
+    'special-quad': 1,
+    'all-meat': 1,
+    'big-red': 3,
+    'big-black': 4
+};
 
 export class Rules {
     static getSuite(card) {
@@ -197,28 +213,89 @@ export class Rules {
         return null;
     }
 
-    static canDeclareHarmony(hand, exposed, activeCard) {
-        const allCards = [...hand];
+    /**
+     * Structural harmony shape: card count, perfect partition, exactly 2 KOU.
+     * Returns null when the set cannot be a winning hand.
+     * Score and reward gates are applied by the callers.
+     */
+    static assessHarmony(hand, exposed = [], activeCard = null) {
+        const allCards = [...(hand || [])];
         if (activeCard) allCards.push(activeCard);
 
         let expectedLength = 16;
-        exposed.forEach(meld => {
+        (exposed || []).forEach(meld => {
             allCards.push(...meld.cards);
             if (meld.type === 'KAI-ZAO' || meld.type === 'XIA-CE') {
                 expectedLength += 1;
             }
         });
 
-        if (allCards.length !== expectedLength) return false;
+        if (allCards.length !== expectedLength) return null;
 
         const partition = this.findPerfectPartition(allCards, 2);
-        if (!partition) return false;
+        if (!partition) return null;
 
         const points = this.calculateTotalPoints(partition);
-        if (points >= SCORE_THRESHOLD) return true;
+        const meetsScore = points >= SCORE_THRESHOLD || this.isAllVeggie(allCards);
+        return { allCards, partition, points, meetsScore };
+    }
 
-        // Issue #2: an all-veggie winning set waives the 10-fu threshold.
-        return this.isAllVeggie(allCards);
+    static rewardReasons(allCards, partition, points, isSelfDraw) {
+        const reasons = [];
+        if (points === SCORE_THRESHOLD) reasons.push('exact-10');
+        if (this.isAllVeggie(allCards)) reasons.push('all-veggie');
+        if (isSelfDraw) reasons.push('self-draw');
+        if (points >= HIGH_SCORE_THRESHOLD) reasons.push('score-20');
+        if (partition.some(m => m.type === 'DRAGON' || m.type === 'SNAKE')) reasons.push('dragon-snake');
+        if (this.hasRewardQuad(allCards)) reasons.push('special-quad');
+        if (allCards.length > 0 && allCards.every(c => this.isMeat(c.suiteIndex))) reasons.push('all-meat');
+        if (allCards.length > 0 && allCards.every(c => c.isRed)) reasons.push('big-red');
+        if (allCards.length > 0 && allCards.every(c => !c.isRed)) reasons.push('big-black');
+        return reasons;
+    }
+
+    static rewardTotal(reasons) {
+        return reasons.reduce((sum, reason) => sum + (REWARD_WEIGHTS[reason] || 0), 0);
+    }
+
+    static hasRewardQuad(cards) {
+        const counts = Object.create(null);
+        REWARD_QUAD_CHARACTERS.forEach(ch => { counts[ch] = 0; });
+        cards.forEach(c => {
+            if (Object.prototype.hasOwnProperty.call(counts, c.character)) counts[c.character]++;
+        });
+        return REWARD_QUAD_CHARACTERS.some(ch => counts[ch] >= 4);
+    }
+
+    /**
+     * Reward (大) for a hand that already meets every other Harmony condition.
+     * total is 0 when the set is not otherwise a winning hand.
+     * isSelfDraw is true only when this player drew the completing card from the deck.
+     */
+    static calculateRewards(hand, exposed, activeCard, options = {}) {
+        const assessed = this.assessHarmony(hand, exposed, activeCard);
+        if (!assessed || !assessed.meetsScore) return { total: 0, reasons: [] };
+
+        const reasons = this.rewardReasons(
+            assessed.allCards,
+            assessed.partition,
+            assessed.points,
+            !!options.isSelfDraw
+        );
+        return { total: this.rewardTotal(reasons), reasons, points: assessed.points };
+    }
+
+    static canDeclareHarmony(hand, exposed, activeCard, options = {}) {
+        const reward = this.calculateRewards(hand, exposed, activeCard, options);
+        return reward.total >= 1;
+    }
+
+    static firstLegalDiscardIndex(hand) {
+        if (!hand) return -1;
+        for (let i = 0; i < hand.length; i++) {
+            if (this.canDiscard(hand, i)) return i;
+        }
+        return -1;
     }
 
     static isAllVeggie(cards) {
@@ -254,7 +331,7 @@ export class Rules {
         return true;
     }
 
-    static getActions(hand, card, isSelf, exposed = [], discards = []) {
+    static getActions(hand, card, isSelf, exposed = [], discards = [], options = {}) {
         const moves = [];
         const sameInHand = hand.filter(c => c.typeId === card.typeId);
         const count = sameInHand.length;
@@ -387,7 +464,7 @@ export class Rules {
             }
         }
 
-        if (this.canDeclareHarmony(hand, exposed, card)) {
+        if (this.canDeclareHarmony(hand, exposed, card, options)) {
             if (!moves.some(m => m.type === 'HARMONY')) {
                 moves.push({ type: 'HARMONY', cards: [] });
             }
