@@ -142,7 +142,7 @@ export function runRewardTests() {
         [],
         null,
         {},
-        1,
+        2,
         ['special-quad']
     );
 
@@ -261,7 +261,7 @@ export function runRewardTests() {
         [],
         null,
         {},
-        3,
+        4,
         ['score-20', 'dragon-snake', 'special-quad']
     );
 
@@ -276,7 +276,7 @@ export function runRewardTests() {
         ['all-veggie']
     );
 
-    // Four of both 上 and 七 is still one special-quad reward, then other bonuses may stack.
+    // Four of both 上 and 七 is still one special-quad bonus, worth 2, plus 20 fu.
     {
         const reward = Rules.calculateRewards(
             [
@@ -293,8 +293,9 @@ export function runRewardTests() {
             {}
         );
         assert(
-            'Two special quads add a single special-quad reward',
+            'Two special quads still add one bonus, worth 2',
             reward.points !== undefined
+                && reward.total === 3
                 && reward.reasons.filter(r => r === 'special-quad').length === 1,
             `reasons=${(reward.reasons || []).join(', ')} total=${reward.total} points=${reward.points}`
         );
