@@ -4,7 +4,7 @@ import { ALL_SUITES } from './card.js';
 export const SCORE_THRESHOLD = 10;
 export const HIGH_SCORE_THRESHOLD = 20;
 
-// Four of a kind of these characters is worth one reward. No other character qualifies.
+// Four of a kind of these characters is worth two rewards. No other character qualifies.
 export const REWARD_QUAD_CHARACTERS = ['上', '七', '可'];
 
 const REWARD_WEIGHTS = {
@@ -13,7 +13,7 @@ const REWARD_WEIGHTS = {
     'self-draw': 1,
     'score-20': 1,
     'dragon-snake': 1,
-    'special-quad': 1,
+    'special-quad': 2,
     'all-meat': 1,
     'big-red': 3,
     'big-black': 4
