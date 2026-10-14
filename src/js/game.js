@@ -32,6 +32,17 @@ export class Game {
         this.pendingActions = new Map();
         this.highlightedCards = []; // Array of Card objects to highlight
         this.declinedPlayers = new Set(); // Track who has declined the current active card
+        this.flowToken = 0; // Invalidates timers from a previous game or turn branch
+    }
+
+    // Only the newest follow-up runs. A new game, or a later step, cancels timers
+    // still pending from an earlier game so they cannot meld the wrong card.
+    scheduleFlow(delay, fn) {
+        const token = ++this.flowToken;
+        setTimeout(() => {
+            if (token !== this.flowToken) return;
+            fn();
+        }, delay);
     }
 
     on(event, callback) {
@@ -51,6 +62,9 @@ export class Game {
     }
 
     init(watchMode = false) {
+        // Drop timers from the previous game before any new turn is scheduled.
+        this.flowToken++;
+
         // Create deck with a completely fresh seeded PRNG instance
         this.deck = new Deck(getFreshSeed());
 
@@ -95,7 +109,7 @@ export class Game {
 
         // Respect autoPlayDelay for bots/watch mode
         const delay = this.isWatchMode ? this.autoPlayDelay : GAME_SPEEDS.TURN_START_DELAY;
-        setTimeout(() => this.drawCard(), delay);
+        this.scheduleFlow(delay, () => this.drawCard());
     }
 
     drawCard() {
@@ -116,10 +130,9 @@ export class Game {
         this.emit(EVENTS.STATE_CHANGE);
 
         const delay = (this.isWatchMode || !this.players[this.currentPlayerIndex].isHuman) ? GAME_SPEEDS.BOT_DRAW_INTERNAL_DELAY : 0;
-        setTimeout(() => {
-            // Check Actions
+        this.scheduleFlow(delay, () => {
             this.handleDrawActions(card);
-        }, delay);
+        });
     }
 
     checkInterrupts(card, isDraw) {
@@ -319,7 +332,7 @@ export class Game {
                 this.turnPhase = 'ANIMATING';
                 this.emit(EVENTS.STATE_CHANGE);
 
-                setTimeout(() => {
+                this.scheduleFlow(GAME_SPEEDS.PASS_ACTION_DELAY, () => {
                     this.highlightedCards = [];
                     const nextIdx = (playerIndex + 1) % 3;
                     const nextP = this.players[nextIdx];
@@ -336,14 +349,14 @@ export class Game {
                         // and the user sees the receiving player before they act.
                         this.turnPhase = 'DRAWING';
                         this.emit(EVENTS.STATE_CHANGE);
-                        setTimeout(() => {
-                            this.resolvePassedBotActions(nextIdx, card, this.pendingActions.get(nextIdx));
-                        }, GAME_SPEEDS.PASS_ACTION_DELAY);
+                        this.scheduleFlow(GAME_SPEEDS.PASS_ACTION_DELAY, () => {
+                            this.resolvePassedBotActions(nextIdx, card, receiverActions);
+                        });
                     } else {
                         this.turnPhase = 'DECISION_WAIT';
                         this.emit(EVENTS.STATE_CHANGE);
                     }
-                }, GAME_SPEEDS.PASS_ACTION_DELAY);
+                });
             } else {
                 // Case 2: Player declines a card passed to them (Secondary Pass)
                 this.log(`${p.name} declined passed card. Now draws from deck.`);
@@ -354,12 +367,12 @@ export class Game {
                 this.activeCard = card; // Ensure it's still in the center
                 this.emit(EVENTS.STATE_CHANGE);
 
-                setTimeout(() => {
+                this.scheduleFlow(GAME_SPEEDS.PASS_ACTION_DELAY, () => {
                     this.activeCard = null;
                     this.highlightedCards = [];
                     this.drawnCardId = null;
                     this.startTurn();
-                }, GAME_SPEEDS.PASS_ACTION_DELAY);
+                });
             }
         } else {
             // Interrupt PASS (Decline)
@@ -413,9 +426,9 @@ export class Game {
         this.activeCard = null;
         this.emit(EVENTS.STATE_CHANGE);
 
-        setTimeout(() => {
+        this.scheduleFlow(GAME_SPEEDS.HARMONY_CELEBRATION, () => {
             this.endGame({ winner: p, rewards: reward.total });
-        }, GAME_SPEEDS.HARMONY_CELEBRATION);
+        });
     }
 
     executeBotMeld(playerIndex, card, action) {
@@ -424,6 +437,16 @@ export class Game {
         const player = this.players[playerIndex];
 
         const highlighted = [];
+
+        if (!card) return;
+        if (player.exposed.some(m => m.cards.some(c => c.id === card.id))) {
+            this.log(`Ignored repeat of ${card.toString()}`);
+            return;
+        }
+        if (action.meldRef && !Rules.isLegalMeldUpgrade(action.meldRef, card, action.type)) {
+            this.log(`Ignored illegal ${action.type} with ${card.toString()}`);
+            return;
+        }
 
         if (action.meldRef) {
             const meld = action.meldRef;
@@ -480,13 +503,13 @@ export class Game {
         this.turnPhase = 'ANIMATING';
         this.emit(EVENTS.STATE_CHANGE);
 
-        setTimeout(() => {
+        this.scheduleFlow(GAME_SPEEDS.BOT_MELD_HIGHLIGHT, () => {
             this.highlightedCards = [];
             // Reset to whoever melded, and THEN advance turn
             this.currentPlayerIndex = playerIndex;
             this.currentPlayerIndex = (this.currentPlayerIndex + 1) % 3;
             this.startTurn();
-        }, GAME_SPEEDS.BOT_MELD_HIGHLIGHT);
+        });
     }
 
     // For Human: Called when button clicked
@@ -532,13 +555,21 @@ export class Game {
         this.turnPhase = 'ANIMATING'; // Freeze
         this.emit(EVENTS.STATE_CHANGE);
 
-        setTimeout(() => {
+        this.scheduleFlow(GAME_SPEEDS.HUMAN_MELD_HIGHLIGHT, () => {
             this.finalizeConfirmHumanMeld(p, action, discardCard, humanIdx);
-        }, GAME_SPEEDS.HUMAN_MELD_HIGHLIGHT);
+        });
     }
 
     finalizeConfirmHumanMeld(p, action, discardCard, humanIdx) {
         const meldCard = this.activeCard;
+        if (meldCard && p.exposed.some(m => m.cards.some(c => c.id === meldCard.id))) {
+            this.log(`Ignored repeat of ${meldCard.toString()}`);
+            return;
+        }
+        if (action.meldRef && !Rules.isLegalMeldUpgrade(action.meldRef, meldCard, action.type)) {
+            this.log(`Ignored illegal ${action.type} with ${meldCard ? meldCard.toString() : 'no card'}`);
+            return;
+        }
         if (action.meldRef) {
             const meld = action.meldRef;
             if (meld && meldCard) {
@@ -623,7 +654,7 @@ export class Game {
         this.emit(EVENTS.STATE_CHANGE);
 
         if (!player.isHuman || this.isWatchMode) {
-            setTimeout(() => this.botDiscard(player), this.autoPlayDelay);
+            this.scheduleFlow(this.autoPlayDelay, () => this.botDiscard(player));
         }
     }
 
@@ -637,9 +668,9 @@ export class Game {
         this.turnPhase = 'ANIMATING'; // Freeze UI
         this.emit(EVENTS.STATE_CHANGE);
 
-        setTimeout(() => {
+        this.scheduleFlow(GAME_SPEEDS.DISCARD_HIGHLIGHT, () => {
             this.finalizeDiscard(p, card);
-        }, GAME_SPEEDS.DISCARD_HIGHLIGHT);
+        });
     }
 
     finalizeDiscard(p, card) {
@@ -690,7 +721,7 @@ export class Game {
             this.turnPhase = 'DISCARD_WAIT';
             this.emit(EVENTS.STATE_CHANGE);
 
-            if (!nextPlayer.isHuman || this.isWatchMode) setTimeout(() => this.botDiscard(nextPlayer), this.autoPlayDelay);
+            if (!nextPlayer.isHuman || this.isWatchMode) this.scheduleFlow(this.autoPlayDelay, () => this.botDiscard(nextPlayer));
             return;
         }
 
@@ -709,10 +740,10 @@ export class Game {
         this.highlightedCards = [card];
         this.emit(EVENTS.STATE_CHANGE);
 
-        setTimeout(() => {
+        this.scheduleFlow(GAME_SPEEDS.NEXT_TURN_DELAY, () => {
             this.highlightedCards = [];
             this.startTurn();
-        }, GAME_SPEEDS.NEXT_TURN_DELAY);
+        });
     }
 
     formKou(cardIndex) {

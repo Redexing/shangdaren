@@ -61,6 +61,33 @@ export class Rules {
         return !indices.includes(card.characterIndex);
     }
 
+    // A meld upgrade has to still be the meld it was when the action was chosen.
+    // A CHI only completes a 2-card KOU of the same suit.
+    static isLegalMeldUpgrade(meld, card, actionType) {
+        if (!meld || !card || !Array.isArray(meld.cards) || meld.cards.length === 0) return false;
+        if (meld.cards.some(c => c.id === card.id)) return false;
+        const sameSuit = meld.cards.every(c => c.suiteIndex === card.suiteIndex);
+
+        if (actionType === 'CHI') {
+            return meld.type === 'KOU'
+                && meld.cards.length === 2
+                && sameSuit
+                && new Set(meld.cards.map(c => c.characterIndex)).size === 2
+                && meld.cards.every(c => c.characterIndex !== card.characterIndex);
+        }
+        if (actionType === 'XIA-CE' || actionType === 'KAI-ZAO') {
+            return meld.type === 'SAO'
+                && meld.cards.length === 3
+                && meld.cards.every(c => c.typeId === card.typeId);
+        }
+        if (actionType === 'DRAGON' || actionType === 'SNAKE') {
+            return (meld.type === 'HALF-DRAGON' || meld.type === 'HALF-SNAKE')
+                && sameSuit
+                && meld.cards.every(c => c.characterIndex !== card.characterIndex);
+        }
+        return false;
+    }
+
     /**
      * Scoring Rules:
      * 1. MEAT CHI: 3 points; VEGGIE CHI: 0 points.
@@ -429,13 +456,10 @@ export class Rules {
             }
         }
 
-        // CHI onto KOU in exposed
+        // CHI onto KOU in exposed. The meld must still be a same-suit pair.
         kouInExposed.forEach(meld => {
-            if (meld.cards[0].suiteIndex === card.suiteIndex) {
-                const indices = meld.cards.map(c => c.characterIndex);
-                if (!indices.includes(card.characterIndex)) {
-                    moves.push({ type: 'CHI', cards: [], meldRef: meld });
-                }
+            if (this.isLegalMeldUpgrade(meld, card, 'CHI')) {
+                moves.push({ type: 'CHI', cards: [], meldRef: meld });
             }
         });
 

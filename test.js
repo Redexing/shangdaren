@@ -5,6 +5,7 @@ import { runGetActionsTests } from './test_get_actions.js';
 import { runHarmonyTests } from './test_harmony.js';
 import { runHarmonyActionTests } from './test_harmony_actions.js';
 import { runRewardTests } from './test_rewards.js';
+import { runFlowTests } from './test_flow.js';
 
 // Setup Mock Listeners
 const game = new Game();
@@ -83,5 +84,6 @@ runGetActionsTests();
 runHarmonyTests();
 runHarmonyActionTests();
 runRewardTests();
+runFlowTests();
 
 console.log('Basic game structure and rules are valid.');
