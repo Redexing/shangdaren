@@ -390,6 +390,21 @@ export function runRewardTests() {
         );
     }
 
+    {
+        const game = createBareGame();
+        const state = buildScreenshotHarmonyState();
+        game.players[0].hand = [...state.hand, state.activeCard];
+        game.players[0].exposed = state.exposed;
+        const lines = [];
+        game.log = (msg) => lines.push(msg);
+        const won = game.finishHarmonyIfWon(game.players[0]);
+        assert(
+            'Harmony log lists the reward keys',
+            won && lines.some(line => line === 'You declares HARMONY! Rewards: 1 [all-veggie]'),
+            lines.join(' | ')
+        );
+    }
+
     if (failed > 0) {
         console.error(`${failed} reward test(s) failed.`);
         process.exit(1);
