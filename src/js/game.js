@@ -409,7 +409,7 @@ export class Game {
         const reward = Rules.calculateRewards(p.hand, p.exposed, card, {
             isSelfDraw: this.isSelfDrawFor(playerIndex)
         });
-        this.log(`${p.name} declares HARMONY! Rewards: ${reward.total}`);
+        this.logHarmony(p, reward);
 
         // Finalize state: Add all cards to exposed for visualization
         const allCards = [...p.hand];
@@ -800,6 +800,11 @@ export class Game {
         return hand.filter(c => !claimedIds.has(c.id));
     }
 
+    logHarmony(player, reward) {
+        const keys = (reward.reasons || []).join(', ');
+        this.log(`${player.name} declares HARMONY! Rewards: ${reward.total} [${keys}]`);
+    }
+
     // The completing card is already part of the hand or an exposed meld.
     finishHarmonyIfWon(player) {
         const playerIndex = this.players.indexOf(player);
@@ -807,7 +812,7 @@ export class Game {
             isSelfDraw: this.isSelfDrawFor(playerIndex)
         });
         if (reward.total < 1) return false;
-        this.log(`${player.name} declares HARMONY! Rewards: ${reward.total}`);
+        this.logHarmony(player, reward);
         this.endGame({ winner: player, rewards: reward.total });
         return true;
     }
