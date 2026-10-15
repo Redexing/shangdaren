@@ -184,8 +184,8 @@ export class Game {
         const upstreamPlayer = this.players[upstream];
         return {
             isSelfDraw,
-            passedHistory: player.passHistory || [],
-            upstreamPassedHistory: upstreamPlayer.passHistory || []
+            passedCards: player.passedCards || [],
+            upstreamPassedCards: upstreamPlayer.passedCards || []
         };
     }
 

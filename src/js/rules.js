@@ -381,8 +381,8 @@ export class Rules {
         const suiteInHand = hand.filter(c => c.suiteIndex === card.suiteIndex && c.typeId !== card.typeId);
         const uniqueInSuite = Array.from(new Set(suiteInHand.map(c => c.characterIndex)));
 
-        const ownPasses = options.passedHistory || [];
-        const upstreamPasses = options.upstreamPassedHistory || [];
+        const ownPasses = options.passedCards || [];
+        const upstreamPasses = options.upstreamPassedCards || [];
         const suiteBroken = this.isKouClosed(card, discards, ownPasses, upstreamPasses);
 
         // expansion upgrade: HALF-DRAGON/SNAKE into DRAGON/SNAKE

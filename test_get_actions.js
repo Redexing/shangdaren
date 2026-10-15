@@ -61,7 +61,7 @@ function kouNoDoOverCases(suiteIdx) {
             hand: [qiu],
             card: ji,
             isSelf: true,
-            options: { passedHistory: [otherYi] },
+            options: { passedCards: [otherYi] },
             expected: ['PASS']
         },
         {
@@ -69,7 +69,7 @@ function kouNoDoOverCases(suiteIdx) {
             hand: [qiu],
             card: ji,
             isSelf: true,
-            options: { upstreamPassedHistory: [yi] },
+            options: { upstreamPassedCards: [yi] },
             expected: ['PASS']
         },
         {
@@ -77,7 +77,7 @@ function kouNoDoOverCases(suiteIdx) {
             hand: [qiu],
             card: ji,
             isSelf: true,
-            options: { upstreamPassedHistory: [otherJi] },
+            options: { upstreamPassedCards: [otherJi] },
             expected: ['PASS']
         },
         {
@@ -85,7 +85,7 @@ function kouNoDoOverCases(suiteIdx) {
             hand: [qiu],
             card: ji,
             isSelf: true,
-            options: { upstreamPassedHistory: [ji] },
+            options: { upstreamPassedCards: [ji] },
             expected: ['KOU', 'PASS']
         },
         {
@@ -94,7 +94,7 @@ function kouNoDoOverCases(suiteIdx) {
             card: ji,
             isSelf: true,
             discards: [otherSuit],
-            options: { passedHistory: [new Card(207, 3, 1)], upstreamPassedHistory: [new Card(208, 5, 2)] },
+            options: { passedCards: [new Card(207, 3, 1)], upstreamPassedCards: [new Card(208, 5, 2)] },
             expected: ['KOU', 'PASS']
         },
         {
@@ -103,7 +103,7 @@ function kouNoDoOverCases(suiteIdx) {
             card: ji,
             isSelf: true,
             discards: [otherJi],
-            options: { upstreamPassedHistory: [otherYi] },
+            options: { upstreamPassedCards: [otherYi] },
             expected: ['CHI']
         },
         {
@@ -112,7 +112,7 @@ function kouNoDoOverCases(suiteIdx) {
             card: ji,
             isSelf: true,
             discards: [otherYi],
-            options: { isSelfDraw: true, upstreamPassedHistory: [otherJi] },
+            options: { isSelfDraw: true, upstreamPassedCards: [otherJi] },
             expected: ['HARMONY', 'PASS']
         }
     ];
@@ -146,13 +146,21 @@ function runKouNoDoOverGameTests() {
 
     const cases = [
         {
-            name: "Game hides KOU after an upstream pass is later claimed",
+            name: "Upstream pass still in the pass pile blocks KOU",
+            setup(game) {
+                game.players[2].addToDiscards(yi, true);
+            },
+            card: ji,
+            expected: ['PASS']
+        },
+        {
+            name: "Claiming that pass removes it and reopens KOU",
             setup(game) {
                 game.players[2].addToDiscards(yi, true);
                 game.players[2].removePassedCard(yi);
             },
             card: ji,
-            expected: ['PASS']
+            expected: ['KOU', 'PASS']
         },
         {
             name: "Game still offers KOU for the card upstream is passing now",
