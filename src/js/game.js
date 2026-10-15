@@ -149,7 +149,10 @@ export class Game {
         const allActions = new Map();
         const currentP = this.getCurrentPlayer();
         const drawerSelfDraw = this.isSelfDrawFor(this.currentPlayerIndex);
-        const currentActions = Rules.getActions(currentP.hand, card, true, currentP.exposed, currentP.discards, { isSelfDraw: drawerSelfDraw });
+        const currentActions = Rules.getActions(
+            currentP.hand, card, true, currentP.exposed, currentP.discards,
+            this.kouHistoryOptions(this.currentPlayerIndex, drawerSelfDraw)
+        );
         this.ensureHarmonyAction(currentActions, currentP, card, drawerSelfDraw);
         this.applyPassPolicy(currentActions, this.currentPlayerIndex);
         allActions.set(this.currentPlayerIndex, currentActions);
@@ -158,7 +161,10 @@ export class Game {
         for (let i = 1; i < 3; i++) {
             const idx = (this.currentPlayerIndex + i) % 3;
             const p = this.players[idx];
-            let moves = Rules.getActions(p.hand, card, false, p.exposed, p.discards, { isSelfDraw: false });
+            let moves = Rules.getActions(
+                p.hand, card, false, p.exposed, p.discards,
+                this.kouHistoryOptions(idx, false)
+            );
             this.ensureHarmonyAction(moves, p, card, false);
             moves = moves.filter(m => interruptTypes.has(m.type));
             this.applyPassPolicy(moves, idx);
@@ -168,6 +174,19 @@ export class Game {
         }
 
         return allActions;
+    }
+
+    // Own passes and the upstream player's earlier passes close a suit for KOU.
+    // The card currently offered is excluded inside Rules.isKouClosed.
+    kouHistoryOptions(playerIndex, isSelfDraw) {
+        const upstream = (playerIndex + 2) % 3;
+        const player = this.players[playerIndex];
+        const upstreamPlayer = this.players[upstream];
+        return {
+            isSelfDraw,
+            passedCards: player.passedCards || [],
+            upstreamPassedCards: upstreamPlayer.passedCards || []
+        };
     }
 
     // Self-draw means this player drew the completing card from the deck.

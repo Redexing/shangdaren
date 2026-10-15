@@ -1,6 +1,209 @@
 import { Card } from './src/js/card.js';
 import { Rules } from './src/js/rules.js';
+import { Game } from './src/js/game.js';
+import { Player } from './src/js/player.js';
 import { buildScreenshotHarmonyState } from './test_harmony.js';
+
+// Suite 丘乙几. Holding 丘 and seeing 几 can form KOU unless that suit was
+// discarded or passed earlier. Harmony still uses the suit.
+function kouNoDoOverCases(suiteIdx) {
+    const qiu = new Card(200, suiteIdx, 0);
+    const yi = new Card(201, suiteIdx, 1);
+    const ji = new Card(202, suiteIdx, 2);
+    const otherYi = new Card(203, suiteIdx, 1);
+    const otherJi = new Card(204, suiteIdx, 2);
+    const otherQiu = new Card(205, suiteIdx, 0);
+    const otherSuit = new Card(206, 4, 0);
+
+    const winningHand = [
+        new Card(210, 0, 0), new Card(211, 0, 0), new Card(212, 0, 0),
+        new Card(213, 2, 0), new Card(214, 2, 1),
+        qiu,
+        new Card(215, 3, 0), new Card(216, 3, 1), new Card(217, 3, 2),
+        new Card(218, 4, 0), new Card(219, 4, 1), new Card(220, 4, 2),
+        new Card(221, 5, 0), new Card(222, 5, 1), new Card(223, 5, 2)
+    ];
+
+    return [
+        {
+            name: "KOU allowed when the suit was never discarded or passed",
+            hand: [qiu],
+            card: ji,
+            isSelf: true,
+            expected: ['KOU', 'PASS']
+        },
+        {
+            name: "No KOU after discarding 乙 from the same suit",
+            hand: [qiu],
+            card: ji,
+            isSelf: true,
+            discards: [yi],
+            expected: ['PASS']
+        },
+        {
+            name: "No KOU after discarding 几 from the same suit",
+            hand: [qiu],
+            card: ji,
+            isSelf: true,
+            discards: [otherJi],
+            expected: ['PASS']
+        },
+        {
+            name: "No KOU after discarding 丘 from the same suit",
+            hand: [qiu],
+            card: ji,
+            isSelf: true,
+            discards: [otherQiu],
+            expected: ['PASS']
+        },
+        {
+            name: "No KOU after passing a card of the suit you drew",
+            hand: [qiu],
+            card: ji,
+            isSelf: true,
+            options: { passedCards: [otherYi] },
+            expected: ['PASS']
+        },
+        {
+            name: "No KOU after upstream already passed 乙",
+            hand: [qiu],
+            card: ji,
+            isSelf: true,
+            options: { upstreamPassedCards: [yi] },
+            expected: ['PASS']
+        },
+        {
+            name: "No KOU after upstream already passed 几",
+            hand: [qiu],
+            card: ji,
+            isSelf: true,
+            options: { upstreamPassedCards: [otherJi] },
+            expected: ['PASS']
+        },
+        {
+            name: "Current upstream pass can still form KOU",
+            hand: [qiu],
+            card: ji,
+            isSelf: true,
+            options: { upstreamPassedCards: [ji] },
+            expected: ['KOU', 'PASS']
+        },
+        {
+            name: "A pass or discard from another suit does not close KOU",
+            hand: [qiu],
+            card: ji,
+            isSelf: true,
+            discards: [otherSuit],
+            options: { passedCards: [new Card(207, 3, 1)], upstreamPassedCards: [new Card(208, 5, 2)] },
+            expected: ['KOU', 'PASS']
+        },
+        {
+            name: "CHI stays mandatory after the suit is closed for KOU",
+            hand: [qiu, yi],
+            card: ji,
+            isSelf: true,
+            discards: [otherJi],
+            options: { upstreamPassedCards: [otherYi] },
+            expected: ['CHI']
+        },
+        {
+            name: "Closed suit still offers HARMONY and hides KOU",
+            hand: winningHand,
+            card: ji,
+            isSelf: true,
+            discards: [otherYi],
+            options: { isSelfDraw: true, upstreamPassedCards: [otherJi] },
+            expected: ['HARMONY', 'PASS']
+        }
+    ];
+}
+
+function runKouNoDoOverGameTests() {
+    const suiteIdx = 1;
+    const qiu = new Card(300, suiteIdx, 0);
+    const yi = new Card(301, suiteIdx, 1);
+    const ji = new Card(302, suiteIdx, 2);
+    const earlierJi = new Card(303, suiteIdx, 2);
+
+    function bareGame() {
+        const game = new Game();
+        game.players = [
+            new Player('You', true),
+            new Player('Bot Left', false),
+            new Player('Bot Right', false)
+        ];
+        game.currentPlayerIndex = 0;
+        game.activeCardSource = 'DECK';
+        game.players[0].hand = [qiu];
+        game.pendingActions = new Map();
+        game.declinedPlayers = new Set();
+        return game;
+    }
+
+    function typesFor(game, card) {
+        return (game.calculateActions(card).get(0) || []).map(a => a.type);
+    }
+
+    const cases = [
+        {
+            name: "Upstream pass still in the pass pile blocks KOU",
+            setup(game) {
+                game.players[2].addToDiscards(yi, true);
+            },
+            card: ji,
+            expected: ['PASS']
+        },
+        {
+            name: "Claiming that pass removes it and reopens KOU",
+            setup(game) {
+                game.players[2].addToDiscards(yi, true);
+                game.players[2].removePassedCard(yi);
+            },
+            card: ji,
+            expected: ['KOU', 'PASS']
+        },
+        {
+            name: "Game still offers KOU for the card upstream is passing now",
+            setup(game) {
+                game.players[2].addToDiscards(ji, true);
+                game.activeCardSource = 2;
+            },
+            card: ji,
+            expected: ['KOU', 'PASS']
+        },
+        {
+            name: "Game hides KOU after you passed 几 earlier",
+            setup(game) {
+                game.players[0].addToDiscards(earlierJi, true);
+            },
+            card: ji,
+            expected: ['PASS']
+        },
+        {
+            name: "Downstream pass does not close your KOU",
+            setup(game) {
+                game.players[1].addToDiscards(yi, true);
+            },
+            card: ji,
+            expected: ['KOU', 'PASS']
+        }
+    ];
+
+    cases.forEach(tc => {
+        const game = bareGame();
+        tc.setup(game);
+        const actionTypes = typesFor(game, tc.card);
+        const isMatch = tc.expected.length === actionTypes.length &&
+            tc.expected.every(type => actionTypes.includes(type));
+        if (isMatch) {
+            console.log(`✅ ${tc.name}: Passed`);
+        } else {
+            console.error(`❌ ${tc.name}: Failed`);
+            console.error(`   Expected: ${tc.expected}`);
+            console.error(`   Got:      ${actionTypes}`);
+        }
+    });
+}
 
 export function runGetActionsTests() {
     console.log("Running refined getActions tests...");
@@ -271,11 +474,19 @@ export function runGetActionsTests() {
                 exposed: state.exposed,
                 expected: ['CHI', 'HARMONY']
             };
-        })()
+        })(),
+        ...kouNoDoOverCases(suite2Idx)
     ];
 
     testCases.forEach(tc => {
-        const actions = Rules.getActions(tc.hand, tc.card, tc.isSelf, tc.exposed || [], tc.discards || []);
+        const actions = Rules.getActions(
+            tc.hand,
+            tc.card,
+            tc.isSelf,
+            tc.exposed || [],
+            tc.discards || [],
+            tc.options || {}
+        );
         const actionTypes = actions.map(a => a.type);
 
         const isMatch = tc.expected.length === actionTypes.length &&
@@ -290,6 +501,7 @@ export function runGetActionsTests() {
         }
     });
 
+    runKouNoDoOverGameTests();
 }
 
 // Run if direct

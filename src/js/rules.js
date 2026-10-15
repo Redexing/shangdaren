@@ -358,6 +358,22 @@ export class Rules {
         return true;
     }
 
+    /**
+     * No-do-over for KOU. A suit stays closed for the rest of the game when
+     * this player has discarded any card of that suit, passed a card of that
+     * suit they drew, or their upstream player has already passed a different
+     * card of that suit. The card being offered right now is not a prior pass.
+     * Harmony can still use the suit; this only suppresses the KOU action.
+     */
+    static isKouClosed(card, discards = [], ownPasses = [], upstreamPasses = []) {
+        if (!card) return false;
+        const sameSuit = (c) => c && c.suiteIndex === card.suiteIndex;
+        const priorPass = (c) => sameSuit(c) && c.id !== card.id;
+        return (discards || []).some(sameSuit)
+            || (ownPasses || []).some(priorPass)
+            || (upstreamPasses || []).some(priorPass);
+    }
+
     static getActions(hand, card, isSelf, exposed = [], discards = [], options = {}) {
         const moves = [];
         const sameInHand = hand.filter(c => c.typeId === card.typeId);
@@ -365,8 +381,9 @@ export class Rules {
         const suiteInHand = hand.filter(c => c.suiteIndex === card.suiteIndex && c.typeId !== card.typeId);
         const uniqueInSuite = Array.from(new Set(suiteInHand.map(c => c.characterIndex)));
 
-        // Check if suite was already "broken" (discarded from)
-        const suiteBroken = discards.some(c => c.suiteIndex === card.suiteIndex);
+        const ownPasses = options.passedCards || [];
+        const upstreamPasses = options.upstreamPassedCards || [];
+        const suiteBroken = this.isKouClosed(card, discards, ownPasses, upstreamPasses);
 
         // expansion upgrade: HALF-DRAGON/SNAKE into DRAGON/SNAKE
         const halfMelds = exposed.filter(m => m.type === 'HALF-DRAGON' || m.type === 'HALF-SNAKE');
