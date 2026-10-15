@@ -7,6 +7,9 @@ export class Player {
         this.exposed = []; // Array of Meld Objects
         this.discards = []; // Array of Cards (From hand)
         this.passedCards = []; // Array of Cards (Drawn but immediately passed)
+        // Passes stay here even after Rule 6 takes the card out of passedCards.
+        // KOU no-do-over reads this history for the rest of the game.
+        this.passHistory = [];
 
         this.wins = 0;
         this.totalGames = 0;
@@ -62,6 +65,7 @@ export class Player {
     addToDiscards(card, wasPassed) {
         if (wasPassed) {
             this.passedCards.push(card);
+            this.passHistory.push(card);
         } else {
             this.discards.push(card);
         }
