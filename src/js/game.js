@@ -252,27 +252,32 @@ export class Game {
     }
 
     resolveBotActions(card, actionMap) {
-        // Naive resolution: Check Interrupts first.
+        // [RULE-INTERRUPT-PRIORITY]
+        // Priority 1: HARMONY claims (interrupters and drawer).
+        for (const offset of [1, 2, 0]) {
+            const idx = (this.currentPlayerIndex + offset) % 3;
+            if (this.declinedPlayers.has(idx)) continue;
+
+            const player = this.players[idx];
+            const moves = actionMap.get(idx);
+            if (moves && moves.length > 0) {
+                const win = moves.find(m => m.type === 'HARMONY');
+                if (win && (!player.isHuman || this.isWatchMode)) {
+                    this.handleHarmony(idx, card);
+                    return;
+                }
+            }
+        }
+
+        // Priority 2: Quad and Trip interrupt claims from other players.
         let handled = false;
         for (let i = 1; i < 3; i++) {
             const idx = (this.currentPlayerIndex + i) % 3;
             if (this.declinedPlayers.has(idx)) continue; // Skip those who declined
 
             const player = this.players[idx];
-            // If it's a human interrupter and we are NOT in watch mode, we MUST wait.
-            // But handleDrawActions already sets DECISION_WAIT if humanIdx has actions.
-            // If we are here, it means we are either in watch mode OR human has already declined or has no SAO/PENG.
-
             const moves = actionMap.get(idx);
             if (moves && moves.length > 0) {
-                // Check Harmony first
-                const win = moves.find(m => m.type === 'HARMONY');
-                if (win && (!player.isHuman || this.isWatchMode)) {
-                    this.handleHarmony(idx, card);
-                    handled = true;
-                    break;
-                }
-
                 const meld = moves.find(m => ['SAO', 'PENG', 'XIA-CE', 'KAI-ZAO', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'].includes(m.type));
                 if (meld && (!player.isHuman || this.isWatchMode)) {
                     this.log(`${player.name} interrupts with ${meld.type}!`);
@@ -284,7 +289,7 @@ export class Game {
         }
 
         if (!handled) {
-            // Drawer Action
+            // Priority 3: Drawer Action
             const dIdx = this.currentPlayerIndex;
             if (this.declinedPlayers.has(dIdx)) {
                 // This shouldn't happen usually but for safety
@@ -552,11 +557,21 @@ export class Game {
             const prospective = this.handAfterMeldClaim(p.hand, action);
             if (Rules.firstLegalDiscardIndex(prospective) === -1) {
                 discardCard = null;
-            } else if (discardCardIndex === -1) {
+            } else if (discardCardIndex === -1 || !p.hand[discardCardIndex]) {
                 console.error("Discard required for " + action.type);
                 return;
             } else {
-                discardCard = p.hand[discardCardIndex];
+                const candidate = p.hand[discardCardIndex];
+                if ((action.cards || []).some(c => c.id === candidate.id)) {
+                    console.error("Cannot discard a card that is part of the meld being formed");
+                    return;
+                }
+                const prospectiveIdx = prospective.findIndex(c => c.id === candidate.id);
+                if (prospectiveIdx === -1 || !Rules.canDiscard(prospective, prospectiveIdx)) {
+                    console.error("Selected card cannot be legally discarded");
+                    return;
+                }
+                discardCard = candidate;
             }
         } else {
             discardCard = null; // These types don't require discard
@@ -864,10 +879,11 @@ export class Game {
 
         // 2. Determine who won based on the result
         if (result.special === 'BAO-ZI') {
-            // Everyone wins except the triangle player (triggerPlayer)
+            // Everyone wins except the trigger player; each winner gets 1 reward (大).
             this.players.forEach(p => {
                 if (p.name !== result.triggerPlayer.name) {
                     p.wins++;
+                    p.totalRewards += 1;
                 }
             });
         } else if (result.winner) {
