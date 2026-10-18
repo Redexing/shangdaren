@@ -1,5 +1,5 @@
-import { Card } from './src/js/card.js';
-import { Rules } from './src/js/rules.js';
+import { Card } from '../src/js/card.js';
+import { Rules } from '../src/js/rules.js';
 
 const VEG_SUITE_4 = 6; // 佳, 作, 仁
 const VEG_SUITE_5 = 7; // 可, 知, 礼

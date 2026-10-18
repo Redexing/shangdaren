@@ -37,6 +37,13 @@ shangdaren/
 │   ├── game.md             # Game rules specification and labeled rules index
 │   ├── terms.md            # Bilingual glossary of actions, melds, and UI terms
 │   └── archived/           # Historical reference material
+├── test/                   # Headless unit & integration test suites
+│   ├── test.js             # Test runner entry point
+│   ├── test_flow.js        # Game lifecycle and bot turn tests
+│   ├── test_get_actions.js # Action matching and interrupt tests
+│   ├── test_harmony.js     # Harmony partition & winning hand tests
+│   ├── test_harmony_actions.js # Harmony declaration action tests
+│   └── test_rewards.js     # Reward (大) point calculation tests
 ├── src/
 │   ├── css/
 │   │   └── style.css       # Design system, glassmorphism, responsive styles & carousel
@@ -213,7 +220,7 @@ Access the application at `http://localhost:8000`.
   ```
 - Run tests defined in `package.json`:
   ```bash
-  npm test # Executes: node test.js
+  npm test # Executes: node test/test.js
   ```
 
 ---
@@ -240,6 +247,6 @@ Access the application at `http://localhost:8000`.
 ## Cursor Cloud specific instructions
 
 - There are no npm dependencies and no lockfile. Node.js and Python 3 from the base image are enough. The environment `install` command only prints `node --version` and `python3 --version`.
-- `npm test` runs `node test.js`. Those checks are headless and do not need the dev server.
+- `npm test` runs `node test/test.js`. Those checks are headless and do not need the dev server.
 - The environment `start` script serves this repository with `python3 -m http.server 8000 --bind 0.0.0.0` when port 8000 is closed, and exits immediately when that port is already open. Open `http://127.0.0.1:8000/`.
 - Start a hand with **New Game (Play)** (`#btn-new-game`; Chinese label 新牌局). A bot may act before the human. **Draw** is `#btn-draw`.

@@ -1,7 +1,7 @@
-import { Game } from './src/js/game.js';
-import { Player } from './src/js/player.js';
-import { Card } from './src/js/card.js';
-import { Rules } from './src/js/rules.js';
+import { Game } from '../src/js/game.js';
+import { Player } from '../src/js/player.js';
+import { Card } from '../src/js/card.js';
+import { Rules } from '../src/js/rules.js';
 
 function card(id, suiteIndex, characterIndex) {
     return new Card(id, suiteIndex, characterIndex);

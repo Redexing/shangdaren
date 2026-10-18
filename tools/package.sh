@@ -13,14 +13,12 @@ fi
 # Create the zip file
 # Exclude:
 # - All .md files
-# - test.js and test_get_actions.js
+# - test/ directory
 # - The tools directory itself
 # - Hidden files (like .git, .DS_Store)
 zip -r "$ZIP_NAME" . \
     -x "*.md" \
-    -x "test.js" \
-    -x "test_get_actions.js" \
-    -x "test_harmony.js" \
+    -x "test/*" \
     -x "tools/*" \
     -x ".git/*" \
     -x ".gitignore" \

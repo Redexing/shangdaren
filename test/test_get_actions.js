@@ -1,7 +1,7 @@
-import { Card } from './src/js/card.js';
-import { Rules } from './src/js/rules.js';
-import { Game } from './src/js/game.js';
-import { Player } from './src/js/player.js';
+import { Card } from '../src/js/card.js';
+import { Rules } from '../src/js/rules.js';
+import { Game } from '../src/js/game.js';
+import { Player } from '../src/js/player.js';
 import { buildScreenshotHarmonyState } from './test_harmony.js';
 
 // Suite 丘乙几. Holding 丘 and seeing 几 can form KOU unless that suit was
