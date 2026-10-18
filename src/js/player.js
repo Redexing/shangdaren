@@ -15,9 +15,9 @@ export class Player {
     }
 
     loadStats() {
-        if (typeof localStorage === 'undefined') return;
+        if (typeof window === 'undefined' || !window.localStorage) return;
         try {
-            const stats = JSON.parse(localStorage.getItem(`shangdaren_stats_${this.name}`));
+            const stats = JSON.parse(window.localStorage.getItem(`shangdaren_stats_${this.name}`));
             if (stats) {
                 this.wins = stats.wins || 0;
                 this.totalGames = stats.totalGames || 0;
@@ -29,9 +29,9 @@ export class Player {
     }
 
     saveStats() {
-        if (typeof localStorage === 'undefined') return;
+        if (typeof window === 'undefined' || !window.localStorage) return;
         try {
-            localStorage.setItem(`shangdaren_stats_${this.name}`, JSON.stringify({
+            window.localStorage.setItem(`shangdaren_stats_${this.name}`, JSON.stringify({
                 wins: this.wins,
                 totalGames: this.totalGames,
                 totalRewards: this.totalRewards
