@@ -18,6 +18,7 @@ A bilingual dictionary of domain and UI terms distilled from `src/js/translation
 | **HALF-SNAKE** | 半蛇 | 4-of-a-kind + 1 other card of the same suit (claimed from other) |
 | **DRAGON** | 龙 | 4-of-a-kind + remaining 2 cards of the same suit (self-drawn) |
 | **SNAKE** | 蛇 | 4-of-a-kind + remaining 2 cards of the same suit (claimed from other) |
+| **TWO-DRAGONS-TUSSLING** | 双龙抱柱 | Two 4-of-a-kind from the same suit (each formed under standard quad rules) + 1 extra card of the same suit from HAND |
 | **HARMONY** | 和 | Winning hand declaration |
 | **Meld** | 组合 | Any valid card formation or combination |
 | **Draw** | 翻牌 | Drawing a card from the deck |

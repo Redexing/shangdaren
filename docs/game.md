@@ -61,6 +61,7 @@ Community zones:
 | **HALF-SNAKE (半蛇)** | 4-of-a-kind + 1 other card of same suit (claimed from other) | 5 | 12 Fu | 6 Fu | Yes |
 | **DRAGON (龙)** | 4-of-a-kind + remaining 2 cards of suit (self-drawn) | 6 | 16 Fu | 8 Fu | Yes |
 | **SNAKE (蛇)** | 4-of-a-kind + remaining 2 cards of suit (claimed from other) | 6 | 14 Fu | 6 Fu | Yes |
+| **TWO-DRAGONS-TUSSLING (双龙抱柱)** | Two 4-of-a-kind of same suit + 1 extra card of suit from HAND | 9 | 22 / 24 / 26 Fu (sum of two quads + 2 Fu) | 12 / 14 / 16 Fu (sum of two quads + 0 Fu) | **No** |
 
 *Note: HALF-DRAGON and HALF-SNAKE count as 1 KOU for the Harmony partition requirement.*
 
@@ -75,6 +76,7 @@ Rewards stack additively and are awarded only to the player who wins with HARMON
 | Self-drawn completing card from Deck | `self-draw` | 1 |
 | Score $\ge 20$ Fu | `score-20` | 1 |
 | Contains at least one full DRAGON or SNAKE | `dragon-snake` | 1 |
+| TWO-DRAGONS-TUSSLING / 双龙抱柱 (upgraded from HALF-DRAGON / HALF-SNAKE) | `two-dragons-tussling` | 3 |
 | Four-of-a-kind of 上, 七, or 可 | `special-quad` | 2 |
 | All Meat cards | `all-meat` | 1 |
 | Big Red (all Red cards) | `big-red` | 3 |
@@ -110,9 +112,21 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 - **`[RULE-KOU-MAX-EXPOSED]`**: A player may have at most 2 exposed KOU melds on the table at any time.
 - **`[RULE-KOU-NO-DO-OVER]`**: A player cannot form a KOU in a suit if they have previously discarded any card of that suit, passed a drawn card of that suit, or their upstream player has previously passed a card of that suit. The card currently being offered by the upstream player remains eligible for KOU. This restriction does not block CHI or HARMONY.
 
+### Meld Formation
+- **`[RULE-EXPOSED-PRIORITY]`**: When an incoming card can form or grow a meld in both EXPOSED and HAND, upgrading the EXPOSED meld takes priority (e.g., if a player holds an 尔小 KOU in both EXPOSED and HAND, an incoming 生 upgrades the EXPOSED KOU to CHI first).
+- **`[RULE-MELD-NO-SPLIT]`**: Melds in EXPOSED can grow or merge, but can never be split.
+- **`[RULE-PENG-IMMUTABLE]`**: An exposed PENG meld cannot be further grown or reformed.
+- **`[RULE-MELD-UPGRADE-KOU]`**: An exposed KOU can grow into a CHI upon claiming the missing third character of the suit.
+- **`[RULE-MELD-UPGRADE-SAO]`**: A 3-of-a-kind in HAND or an exposed SAO (self-drawn 3-of-a-kind in EXPOSED) can grow when its 4th identical card arrives into:
+  - **KAI-ZAO** or **XIA-CE** (if no same-suit cards are attached);
+  - **HALF-DRAGON** or **HALF-SNAKE** if the player already holds 1 other card of the same suit in HAND at that moment (this extra card cannot be added later from a future draw or another player);
+  - **DRAGON** or **SNAKE** if the player holds the other 2 cards of the same suit in HAND or in an exposed KOU.
+- **`[RULE-MELD-UPGRADE-TWO-DRAGONS]`**: An exposed HALF-DRAGON or HALF-SNAKE can grow into a **TWO-DRAGONS-TUSSLING (双龙抱柱)** meld when a second 4-of-a-kind of the same suit is formed (under standard quad rules) alongside the 1 extra card of that suit from HAND. Its Fu score equals the sum of how the two 4-of-a-kind were formed (KAI-ZAO or XIA-CE), plus 2 Fu for the extra card if it is a Meat suit (max 26 Fu for two self-drawn Meat quads: $12 + 12 + 2$). It earns 3 rewards (大) by itself (2 base rewards for counting as two dragons/snakes, plus 1 bonus reward for being in the same suit).
+
 ### Discard Rules
-- **`[RULE-DISCARD-REQUIRED]`**: Every meld claim requires discarding one card from HAND, with the sole exception of quads (`[RULE-DISCARD-EXEMPT-QUADS]`).
+- **`[RULE-DISCARD-REQUIRED]`**: Every meld claim requires discarding one card from HAND, with the sole exception of quads (`[RULE-DISCARD-EXEMPT-QUADS]`) and revealing a naked in-hand quad (`[RULE-NAKED-QUAD-REVEAL]`).
 - **`[RULE-DISCARD-EXEMPT-QUADS]`**: Forming XIA-CE or KAI-ZAO does NOT require a discard.
+- **`[RULE-NAKED-QUAD-REVEAL]`**: When a player holds a naked 4-of-a-kind in HAND (with no other cards from the same suit), the first time they are required to discard a card, they must instead reveal the 4-of-a-kind in EXPOSED and skip the discard (since each naked 4-of-a-kind requires one extra card in total to reach HARMONY).
 - **`[RULE-DISCARD-RESTRICTION-TRIP]`**: A card cannot be discarded if it is part of a 3-of-a-kind or 4-of-a-kind in HAND.
 - **`[RULE-DISCARD-RESTRICTION-CHI]`**: A card cannot be discarded if it is essential to maintaining an existing complete CHI suite in HAND.
 - **`[RULE-DISCARD-RESTRICTION-MELD]`**: When claiming an active card to form a meld that requires a follow-up discard, the discard must come from the player's *remaining* in-hand cards. A player cannot discard any card that is committed to forming that new meld.
