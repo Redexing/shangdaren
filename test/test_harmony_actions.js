@@ -1,6 +1,6 @@
-import { Game } from './src/js/game.js';
-import { Player } from './src/js/player.js';
-import { Card } from './src/js/card.js';
+import { Game } from '../src/js/game.js';
+import { Player } from '../src/js/player.js';
+import { Card } from '../src/js/card.js';
 import { buildScreenshotHarmonyState } from './test_harmony.js';
 
 function createBareGame() {

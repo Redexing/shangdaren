@@ -1,6 +1,6 @@
-import { Game } from './src/js/game.js';
-import { Rules } from './src/js/rules.js';
-import { Card } from './src/js/card.js';
+import { Game } from '../src/js/game.js';
+import { Rules } from '../src/js/rules.js';
+import { Card } from '../src/js/card.js';
 import { runGetActionsTests } from './test_get_actions.js';
 import { runHarmonyTests } from './test_harmony.js';
 import { runHarmonyActionTests } from './test_harmony_actions.js';
