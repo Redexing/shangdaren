@@ -189,6 +189,7 @@ function runKouNoDoOverGameTests() {
         }
     ];
 
+    let failed = 0;
     cases.forEach(tc => {
         const game = bareGame();
         tc.setup(game);
@@ -201,8 +202,10 @@ function runKouNoDoOverGameTests() {
             console.error(`❌ ${tc.name}: Failed`);
             console.error(`   Expected: ${tc.expected}`);
             console.error(`   Got:      ${actionTypes}`);
+            failed++;
         }
     });
+    return failed;
 }
 
 export function runGetActionsTests() {
@@ -464,6 +467,38 @@ export function runGetActionsTests() {
             isSelf: true,
             expected: ['KOU', 'PASS']
         },
+        {
+            name: "[RULE-KOU-MAX-EXPOSED] 2nd KOU allowed when only 1 KOU is exposed",
+            hand: [new Card(70, suite7Idx, 2)], // 仁
+            card: new Card(71, suite7Idx, 1), // 作
+            isSelf: true,
+            exposed: [
+                { type: 'KOU', cards: [new Card(72, suite2Idx, 0), new Card(73, suite2Idx, 1)] }
+            ],
+            expected: ['KOU', 'PASS']
+        },
+        {
+            name: "[RULE-KOU-MAX-EXPOSED] 3rd KOU is blocked when 2 KOUs are already exposed",
+            hand: [new Card(74, suite7Idx, 2)], // 仁
+            card: new Card(75, suite7Idx, 1), // 作
+            isSelf: true,
+            exposed: [
+                { type: 'KOU', cards: [new Card(76, suite2Idx, 0), new Card(77, suite2Idx, 1)] },
+                { type: 'KOU', cards: [new Card(78, suite5Idx, 0), new Card(79, suite5Idx, 1)] }
+            ],
+            expected: ['PASS']
+        },
+        {
+            name: "[RULE-KOU-MAX-EXPOSED] Completing an exposed KOU into CHI is still mandatory at 2 exposed KOUs",
+            hand: [],
+            card: new Card(80, suite2Idx, 2), // 几 completes 丘乙
+            isSelf: true,
+            exposed: [
+                { type: 'KOU', cards: [new Card(81, suite2Idx, 0), new Card(82, suite2Idx, 1)] },
+                { type: 'KOU', cards: [new Card(83, suite5Idx, 0), new Card(84, suite5Idx, 1)] }
+            ],
+            expected: ['CHI']
+        },
         (() => {
             const state = buildScreenshotHarmonyState();
             return {
@@ -478,6 +513,7 @@ export function runGetActionsTests() {
         ...kouNoDoOverCases(suite2Idx)
     ];
 
+    let failed = 0;
     testCases.forEach(tc => {
         const actions = Rules.getActions(
             tc.hand,
@@ -498,10 +534,16 @@ export function runGetActionsTests() {
             console.error(`❌ ${tc.name}: Failed`);
             console.error(`   Expected: ${tc.expected}`);
             console.error(`   Got:      ${actionTypes}`);
+            failed++;
         }
     });
 
-    runKouNoDoOverGameTests();
+    failed += runKouNoDoOverGameTests();
+    if (failed > 0) {
+        console.error(`${failed} getActions test(s) failed.`);
+        process.exit(1);
+    }
+    console.log("All getActions tests passed successfully!");
 }
 
 // Run if direct

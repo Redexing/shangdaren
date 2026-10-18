@@ -358,10 +358,10 @@ export function runRewardTests() {
 
         game.endGame({ winner: null, special: 'BAO-ZI', triggerPlayer: game.players[0] });
         assert(
-            'Baozi gives the others a win and no rewards',
+            '[RULE-BAO-ZI] Baozi gives the other two players a win and 1 reward (大) each',
             game.players[0].wins === 1 && game.players[0].totalRewards === 3
-                && game.players[1].wins === 1 && game.players[1].totalRewards === 0
-                && game.players[2].wins === 1 && game.players[2].totalRewards === 0,
+                && game.players[1].wins === 1 && game.players[1].totalRewards === 1
+                && game.players[2].wins === 1 && game.players[2].totalRewards === 1,
             `wins=${game.players.map(p => p.wins).join(',')} rewards=${game.players.map(p => p.totalRewards).join(',')}`
         );
     }
@@ -371,11 +371,30 @@ export function runRewardTests() {
         const locked = game.players[1];
         locked.hand = chi(0);
         assert(
-            'A must-meld with no legal discard is baozi',
+            '[RULE-BAO-ZI] A must-meld with no legal discard is baozi and awards 1大 to each winner',
             game.declareBaoziIfNoLegalDiscard(locked) === true
                 && locked.wins === 0 && locked.totalRewards === 0
-                && game.players[0].wins === 1 && game.players[0].totalRewards === 0,
-            `wins=${game.players.map(p => p.wins).join(',')}`
+                && game.players[0].wins === 1 && game.players[0].totalRewards === 1
+                && game.players[2].wins === 1 && game.players[2].totalRewards === 1,
+            `wins=${game.players.map(p => p.wins).join(',')} rewards=${game.players.map(p => p.totalRewards).join(',')}`
+        );
+    }
+
+    {
+        const game = createBareGame();
+        const trigger = game.players[2];
+        const c1 = card(0, 0); // 上
+        const c2 = card(0, 1); // 大
+        const incoming = card(0, 2); // 人
+        trigger.hand = [c1, c2]; // 0 cards remain after forming CHI
+        game.executeBotMeld(2, incoming, { type: 'CHI', cards: [c1, c2] });
+        assert(
+            '[RULE-BAO-ZI] Completing a meld with 0 cards left in hand triggers baozi and gives 1大 to each non-trigger player',
+            trigger.hand.length === 0
+                && trigger.wins === 0 && trigger.totalRewards === 0
+                && game.players[0].wins === 1 && game.players[0].totalRewards === 1
+                && game.players[1].wins === 1 && game.players[1].totalRewards === 1,
+            `wins=${game.players.map(p => p.wins).join(',')} rewards=${game.players.map(p => p.totalRewards).join(',')}`
         );
     }
 
