@@ -1,4 +1,5 @@
 import { Game } from '../src/js/game.js';
+import { Player } from '../src/js/player.js';
 import { Rules } from '../src/js/rules.js';
 import { Card } from '../src/js/card.js';
 import { runGetActionsTests } from './test_get_actions.js';
@@ -85,5 +86,13 @@ runHarmonyTests();
 runHarmonyActionTests();
 runRewardTests();
 runFlowTests();
+
+// Verify Player stats storage gracefully handles headless environment
+const testPlayer = new Player('HeadlessPlayer');
+testPlayer.wins = 3;
+testPlayer.totalGames = 10;
+testPlayer.saveStats();
+testPlayer.loadStats();
+console.log('Player headless stats test passed.');
 
 console.log('Basic game structure and rules are valid.');
