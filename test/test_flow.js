@@ -402,6 +402,60 @@ export function runFlowTests() {
         );
     });
 
+    // Regression test: Bot with three 小 in hand must NOT break them to form KOU with 生,
+    // and must form KAI-ZAO when later self-drawing the 4th 小.
+    withFakeTimers(() => {
+        const game = new Game();
+        game.isWatchMode = true;
+        game.players = [
+            new Player('Bot 1', false),
+            new Player('Bot 2', false),
+            new Player('Bot 3', false)
+        ];
+        const xiao1 = card(601, 4, 1); // 小
+        const xiao2 = card(602, 4, 1); // 小
+        const xiao3 = card(603, 4, 1); // 小
+        const spare = card(604, 0, 1); // 大
+        const sheng = card(605, 4, 2); // 生
+        const xiao4 = card(606, 4, 1); // 4th 小
+
+        game.players[1].hand = [xiao1, xiao2, xiao3, spare];
+        game.players[0].hand = [card(607, 3, 0)];
+        game.players[2].hand = [card(608, 5, 0)];
+
+        // Step 1: Bot 2 draws 生 -> cannot break 小x3 for KOU, must PASS
+        game.currentPlayerIndex = 1;
+        game.activeCard = sheng;
+        game.activeCardSource = 'DECK';
+        const shengActions = game.calculateActions(sheng);
+        game.resolveBotActions(sheng, shengActions);
+
+        assert(
+            'Bot 2 does not break three 小 in hand to form KOU with 生',
+            game.players[1].exposed.length === 0
+                && game.players[1].hand.filter(c => c.character === '小').length === 3
+                && game.players[1].passedCards.some(c => c.id === sheng.id),
+            `exposed=${game.players[1].exposed.map(m => m.type).join(',')} hand=${game.players[1].hand.map(c => c.character).join('')}`
+        );
+
+        // Step 2: Later Bot 2 self-draws the 4th 小 -> forms KAI-ZAO
+        game.currentPlayerIndex = 1;
+        game.activeCard = xiao4;
+        game.activeCardSource = 'DECK';
+        game.declinedPlayers.clear();
+        const xiao4Actions = game.calculateActions(xiao4);
+        game.resolveBotActions(xiao4, xiao4Actions);
+
+        assert(
+            'Bot 2 forms KAI-ZAO when self-drawing the 4th 小',
+            game.players[1].exposed.length === 1
+                && game.players[1].exposed[0].type === 'KAI-ZAO'
+                && game.players[1].exposed[0].cards.length === 4
+                && game.players[1].hand.length === 1 && game.players[1].hand[0].id === spare.id,
+            `exposed=${game.players[1].exposed.map(m => m.type).join(',')} hand=${game.players[1].hand.map(c => c.character).join('')}`
+        );
+    });
+
     if (failed > 0) {
         console.error(`${failed} flow test(s) failed.`);
         process.exit(1);

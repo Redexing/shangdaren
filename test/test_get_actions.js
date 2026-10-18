@@ -439,7 +439,8 @@ export function runGetActionsTests() {
             ],
             card: new Card(61, suite5Idx, 1), // 小
             isSelf: true,
-            expected: ['KOU', 'PASS']
+            expected: ['KOU', 'PASS'],
+            expectedKouPartnerId: 59 // Must pair with 生, never breaking 尔尔尔
         },
         {
             name: "Prohibit breaking SAO for CHI when card is passed by others",
@@ -451,7 +452,8 @@ export function runGetActionsTests() {
             ],
             card: new Card(61, suite5Idx, 1), // 小
             isSelf: false,
-            expected: ['KOU', 'PASS']
+            expected: ['KOU', 'PASS'],
+            expectedKouPartnerId: 59
         },
         {
             name: "SAO cannot break to form CHI",
@@ -465,7 +467,30 @@ export function runGetActionsTests() {
             ],
             card: new Card(62, suite5Idx, 1), // 小
             isSelf: true,
-            expected: ['KOU', 'PASS']
+            expected: ['KOU', 'PASS'],
+            expectedKouPartnerId: 60 // Must pair with redundant 生, never breaking 尔尔尔
+        },
+        {
+            name: "Prohibit breaking 3-of-a-kind (小x3) in hand to form KOU with 生",
+            hand: [
+                new Card(63, suite5Idx, 1), // 小
+                new Card(64, suite5Idx, 1), // 小
+                new Card(65, suite5Idx, 1)  // 小
+            ],
+            card: new Card(66, suite5Idx, 2), // 生
+            isSelf: true,
+            expected: ['PASS']
+        },
+        {
+            name: "Holding un-broken 3-of-a-kind (小x3) forms KAI-ZAO on self-drawn 4th 小",
+            hand: [
+                new Card(63, suite5Idx, 1), // 小
+                new Card(64, suite5Idx, 1), // 小
+                new Card(65, suite5Idx, 1)  // 小
+            ],
+            card: new Card(67, suite5Idx, 1), // 4th 小
+            isSelf: true,
+            expected: ['KAI-ZAO']
         },
         {
             name: "[RULE-KOU-MAX-EXPOSED] 2nd KOU allowed when only 1 KOU is exposed",
@@ -525,8 +550,12 @@ export function runGetActionsTests() {
         );
         const actionTypes = actions.map(a => a.type);
 
-        const isMatch = tc.expected.length === actionTypes.length &&
+        const isTypeMatch = tc.expected.length === actionTypes.length &&
             tc.expected.every(type => actionTypes.includes(type));
+        const kouAction = actions.find(a => a.type === 'KOU');
+        const isPartnerMatch = tc.expectedKouPartnerId === undefined ||
+            (kouAction && kouAction.cards.length === 1 && kouAction.cards[0].id === tc.expectedKouPartnerId);
+        const isMatch = isTypeMatch && isPartnerMatch;
 
         if (isMatch) {
             console.log(`✅ ${tc.name}: Passed`);
@@ -534,6 +563,9 @@ export function runGetActionsTests() {
             console.error(`❌ ${tc.name}: Failed`);
             console.error(`   Expected: ${tc.expected}`);
             console.error(`   Got:      ${actionTypes}`);
+            if (!isPartnerMatch) {
+                console.error(`   Expected KOU partner id: ${tc.expectedKouPartnerId}, Got: ${kouAction ? kouAction.cards.map(c => c.id) : 'no KOU'}`);
+            }
             failed++;
         }
     });

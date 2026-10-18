@@ -487,10 +487,10 @@ export class Rules {
             const sCounts = [0, 0, 0];
             allSuiteCardsInHand.forEach(c => sCounts[c.characterIndex]++);
 
-            // Try to find a partner who is redundant in hand first
-            let partnerChar = others.find(i => sCounts[i] > 1);
+            // Try to find a partner who is redundant in hand first, without breaking a 3-of-a-kind or 4-of-a-kind
+            let partnerChar = others.find(i => sCounts[i] === 2);
             if (partnerChar === undefined) {
-                partnerChar = others.find(i => sCounts[i] > 0);
+                partnerChar = others.find(i => sCounts[i] === 1);
             }
 
             if (partnerChar !== undefined) {
