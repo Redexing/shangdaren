@@ -270,6 +270,77 @@ export function runHarmonyTests() {
             exposed: [],
             activeCard: null,
             expected: false
+        },
+        {
+            name: "[RULE-MELD-NO-SPLIT] Exposed CHI cannot be split even in an all-veggie hand with rewards",
+            hand: [
+                ...makeChi(VEG_SUITE_1),
+                ...makeChi(VEG_SUITE_3),
+                ...makeChi(6),
+                ...makeChi(7)
+            ],
+            exposed: [
+                { type: 'CHI', cards: makeChi(VEG_SUITE_2) }
+            ],
+            activeCard: new Card(getNextId(), VEG_SUITE_2, 1),
+            expected: false
+        },
+        {
+            name: "[RULE-PENG-IMMUTABLE] Exposed PENG scores 3 Fu (not 6 Fu as SAO) and cannot reach 10-Fu threshold on 7-Fu hand",
+            hand: [
+                ...makeKou(MEAT_SUITE_2, 0, 1), // 2 Fu
+                ...makeKou(MEAT_SUITE_3, 0, 1), // 2 Fu
+                ...makeChi(MEAT_SUITE_1),       // 3 Fu
+                ...makeChi(VEG_SUITE_1),        // 0 Fu
+                ...makeChi(VEG_SUITE_2)         // 0 Fu -> hand is 7 Fu + exposed PENG 3 Fu = 10 Fu (exact-10!)
+            ],
+            exposed: [
+                { type: 'PENG', cards: makeTrip(VEG_SUITE_3, 0) } // Veggie PENG = 2 Fu -> 7 + 2 = 9 Fu < 10! (Would be 11 if mis-scored as SAO)
+            ],
+            activeCard: null,
+            expected: false
+        },
+        {
+            name: "[RULE-MELD-UPGRADE-TWO-DRAGONS] Valid 16-card Harmony with TWO-DRAGONS-TUSSLING (9) + 1 CHI (3) + 2 KOU (4)",
+            hand: [
+                ...makeKou(MEAT_SUITE_1, 0, 1), // 2 cards
+                ...makeKou(MEAT_SUITE_2, 0, 1), // 2 cards
+                ...makeChi(VEG_SUITE_1)         // 3 cards
+            ],
+            exposed: [
+                {
+                    type: 'TWO-DRAGONS-TUSSLING',
+                    cards: [
+                        ...makeQuad(VEG_SUITE_2, 0),
+                        new Card(getNextId(), VEG_SUITE_2, 1),
+                        ...makeQuad(VEG_SUITE_2, 2)
+                    ],
+                    quadTypes: ['KAI-ZAO', 'KAI-ZAO']
+                }
+            ],
+            activeCard: null,
+            expected: true
+        },
+        {
+            name: "[RULE-HARMONY-EXACT-2-KOU] TWO-DRAGONS-TUSSLING does NOT count as a KOU",
+            hand: [
+                ...makeKou(MEAT_SUITE_1, 0, 1), // Only 1 KOU!
+                ...makeChi(VEG_SUITE_1),
+                new Card(getNextId(), VEG_SUITE_3, 0),
+                new Card(getNextId(), VEG_SUITE_3, 0) // Not a KOU
+            ],
+            exposed: [
+                {
+                    type: 'TWO-DRAGONS-TUSSLING',
+                    cards: [
+                        ...makeQuad(VEG_SUITE_2, 0),
+                        new Card(getNextId(), VEG_SUITE_2, 1),
+                        ...makeQuad(VEG_SUITE_2, 2)
+                    ]
+                }
+            ],
+            activeCard: null,
+            expected: false
         }
     ];
 

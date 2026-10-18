@@ -61,7 +61,7 @@ Community zones:
 | **HALF-SNAKE (半蛇)** | 4-of-a-kind + 1 other card of same suit (claimed from other) | 5 | 12 Fu | 6 Fu | Yes |
 | **DRAGON (龙)** | 4-of-a-kind + remaining 2 cards of suit (self-drawn) | 6 | 16 Fu | 8 Fu | Yes |
 | **SNAKE (蛇)** | 4-of-a-kind + remaining 2 cards of suit (claimed from other) | 6 | 14 Fu | 6 Fu | Yes |
-| **TWO-DRAGONS-TUSSLING (双龙抱柱)** | Two 4-of-a-kind of same suit + 1 extra card of suit from HAND | 9 | 22 / 24 / 26 Fu (sum of two quads + 2 Fu) | 12 / 14 / 16 Fu (sum of two quads + 0 Fu) | **No** |
+| **TWO-DRAGONS-TUSSLING (双龙抱柱)** | Two 4-of-a-kind of same suit + 1 extra card of suit from HAND | 9 | 22 / 24 / 26 Fu (sum of two quads + 2 Fu) | 12 / 14 / 16 Fu (sum of two quads + 0 Fu) | Yes |
 
 *Note: HALF-DRAGON and HALF-SNAKE count as 1 KOU for the Harmony partition requirement.*
 

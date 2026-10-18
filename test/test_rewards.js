@@ -110,6 +110,70 @@ export function runRewardTests() {
         ['dragon-snake']
     );
 
+    // [RULE-MELD-UPGRADE-TWO-DRAGONS]: Two-Dragons-Tussling (双龙抱柱) earns 3 rewards by itself,
+    // and its points equal the sum of the two quads + 2 Fu if Meat.
+    {
+        const meatTussling26 = {
+            type: 'TWO-DRAGONS-TUSSLING',
+            cards: [...cards(1, 0, 4), card(1, 1), ...cards(1, 2, 4)],
+            quadTypes: ['KAI-ZAO', 'KAI-ZAO']
+        };
+        const meatTussling24 = { ...meatTussling26, quadTypes: ['KAI-ZAO', 'XIA-CE'] };
+        const meatTussling22 = { ...meatTussling26, quadTypes: ['XIA-CE', 'XIA-CE'] };
+        const vegTussling16 = {
+            type: 'TWO-DRAGONS-TUSSLING',
+            cards: [...cards(4, 0, 4), card(4, 1), ...cards(4, 2, 4)],
+            quadTypes: ['KAI-ZAO', 'KAI-ZAO']
+        };
+        const vegTussling14 = { ...vegTussling16, quadTypes: ['XIA-CE', 'KAI-ZAO'] };
+        const vegTussling12 = { ...vegTussling16, quadTypes: ['XIA-CE', 'XIA-CE'] };
+
+        assert(
+            '[RULE-MELD-UPGRADE-TWO-DRAGONS] Meat TWO-DRAGONS-TUSSLING scores 26 / 24 / 22 Fu',
+            Rules.calculateTotalPoints([meatTussling26]) === 26
+                && Rules.calculateTotalPoints([meatTussling24]) === 24
+                && Rules.calculateTotalPoints([meatTussling22]) === 22,
+            `got=${Rules.calculateTotalPoints([meatTussling26])}/${Rules.calculateTotalPoints([meatTussling24])}/${Rules.calculateTotalPoints([meatTussling22])}`
+        );
+        assert(
+            '[RULE-MELD-UPGRADE-TWO-DRAGONS] Veggie TWO-DRAGONS-TUSSLING scores 16 / 14 / 12 Fu',
+            Rules.calculateTotalPoints([vegTussling16]) === 16
+                && Rules.calculateTotalPoints([vegTussling14]) === 14
+                && Rules.calculateTotalPoints([vegTussling12]) === 12,
+            `got=${Rules.calculateTotalPoints([vegTussling16])}/${Rules.calculateTotalPoints([vegTussling14])}/${Rules.calculateTotalPoints([vegTussling12])}`
+        );
+
+        // Veggie TWO-DRAGONS-TUSSLING (12 Fu) + 2 Meat KOUs (4 Fu) + 1 Veggie CHI (0 Fu) = 16 Fu, mixed suits/colors -> 3 rewards
+        expectReward(
+            '[RULE-MELD-UPGRADE-TWO-DRAGONS] TWO-DRAGONS-TUSSLING scores 3 rewards by itself',
+            [
+                ...kou(0, 0, 1),
+                ...kou(1, 0, 1),
+                ...chi(5)
+            ],
+            [vegTussling12],
+            null,
+            {},
+            3,
+            ['two-dragons-tussling']
+        );
+
+        // Meat TWO-DRAGONS-TUSSLING (26 Fu) + 2 Veggie KOUs (0 Fu) + 1 Veggie CHI (0 Fu) = 26 Fu -> two-dragons-tussling (3) + score-20 (1) = 4 rewards
+        expectReward(
+            '[RULE-MELD-UPGRADE-TWO-DRAGONS] Meat TWO-DRAGONS-TUSSLING (26 Fu) stacks with score-20 for 4 rewards',
+            [
+                ...kou(3, 0, 1),
+                ...kou(4, 0, 1),
+                ...chi(5)
+            ],
+            [meatTussling26],
+            null,
+            {},
+            4,
+            ['score-20', 'two-dragons-tussling']
+        );
+    }
+
     // Half-dragon is not a full snake/dragon. This one is also not a special quad.
     expectReward(
         'Half-dragon alone does not score a reward',

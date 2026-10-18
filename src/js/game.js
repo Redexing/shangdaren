@@ -143,7 +143,7 @@ export class Game {
     calculateActions(card) {
         const interruptTypes = new Set([
             'HARMONY', 'PENG', 'SAO', 'XIA-CE', 'KAI-ZAO',
-            'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'
+            'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
         ]);
 
         const allActions = new Map();
@@ -213,7 +213,10 @@ export class Game {
     }
 
     applyPassPolicy(actions, playerIndex) {
-        const mandatoryMeldTypes = ['SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'];
+        const mandatoryMeldTypes = [
+            'SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE',
+            'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
+        ];
         const hasMandatoryMeld = actions.some(m => mandatoryMeldTypes.includes(m.type));
         const hasHarmony = actions.some(m => m.type === 'HARMONY');
         const harmonyMust = hasHarmony && this.isWinningTileMustClaim(playerIndex);
@@ -237,7 +240,10 @@ export class Game {
 
         // Wait for the human to act or decline, but do not add PASS over a must-claim.
         if (!this.isWatchMode && humanIdx !== -1) {
-            const mustClaim = humanActions.some(a => ['SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'].includes(a.type))
+            const mustClaim = humanActions.some(a => [
+                'SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE',
+                'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
+            ].includes(a.type))
                 || (humanActions.some(a => a.type === 'HARMONY') && this.isWinningTileMustClaim(humanIdx));
 
             if (!mustClaim && !humanActions.find(a => a.type === 'PASS')) {
@@ -278,7 +284,10 @@ export class Game {
             const player = this.players[idx];
             const moves = actionMap.get(idx);
             if (moves && moves.length > 0) {
-                const meld = moves.find(m => ['SAO', 'PENG', 'XIA-CE', 'KAI-ZAO', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'].includes(m.type));
+                const meld = moves.find(m => [
+                    'SAO', 'PENG', 'XIA-CE', 'KAI-ZAO',
+                    'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
+                ].includes(m.type));
                 if (meld && (!player.isHuman || this.isWatchMode)) {
                     this.log(`${player.name} interrupts with ${meld.type}!`);
                     this.executeBotMeld(idx, card, meld);
@@ -319,7 +328,10 @@ export class Game {
                         return;
                     }
 
-                    const mustMove = drawerMoves.find(m => ['SAO', 'PENG', 'CHI', 'XIA-CE', 'KAI-ZAO', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'].includes(m.type));
+                    const mustMove = drawerMoves.find(m => [
+                        'SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE',
+                        'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
+                    ].includes(m.type));
                     const kouMove = drawerMoves.find(m => m.type === 'KOU');
 
                     if (mustMove) {
@@ -430,23 +442,24 @@ export class Game {
 
     handleHarmony(playerIndex, card) {
         const p = this.players[playerIndex];
-        const reward = Rules.calculateRewards(p.hand, p.exposed, card, {
-            isSelfDraw: this.isSelfDrawFor(playerIndex)
-        });
+        const isSelfDraw = this.isSelfDrawFor(playerIndex);
+        const reward = Rules.calculateRewards(p.hand, p.exposed, card, { isSelfDraw });
         this.logHarmony(p, reward);
 
-        // Finalize state: Add all cards to exposed for visualization
-        const allCards = [...p.hand];
-        if (card) allCards.push(card);
-        p.exposed.forEach(m => allCards.push(...m.cards));
+        // [RULE-PASSED-RECLAMATION]: Remove claimed card from passer's passedCards pile
+        if (card && this.activeCardSource !== null && this.activeCardSource !== 'DECK' && this.activeCardSource !== playerIndex) {
+            const prevP = this.players[this.activeCardSource];
+            if (prevP) prevP.removePassedCard(card);
+        }
 
-        const partition = Rules.findPerfectPartition(allCards);
-        if (partition) {
-            p.exposed = partition;
+        // Finalize state: Add all cards to exposed for visualization
+        const assessed = Rules.assessHarmony(p.hand, p.exposed, card, { isSelfDraw });
+        if (assessed && assessed.partition) {
+            p.exposed = assessed.partition;
             p.hand = [];
         }
 
-        this.highlightedCards = [card];
+        this.highlightedCards = card ? [card] : [];
         this.activeCard = null;
         this.emit(EVENTS.STATE_CHANGE);
 
@@ -455,8 +468,21 @@ export class Game {
         });
     }
 
+    revealNakedQuadIfPresent(player, highlighted = []) {
+        const nakedQuad = Rules.findNakedQuadInHand(player.hand);
+        if (!nakedQuad) return false;
+        nakedQuad.forEach(c => {
+            const idx = player.hand.findIndex(hc => hc.id === c.id);
+            if (idx !== -1) player.hand.splice(idx, 1);
+        });
+        player.exposed.push({ type: 'KAI-ZAO', cards: nakedQuad });
+        highlighted.push(...nakedQuad);
+        this.log(`${player.name} revealed naked 4-of-a-kind (${nakedQuad[0].toString()}) in EXPOSED and skipped discard`);
+        return true;
+    }
+
     executeBotMeld(playerIndex, card, action) {
-        // Bot automatically discards random card after meld (unless SAO)
+        // Bot automatically discards random card after meld (unless quad)
         // 1. Meld
         const player = this.players[playerIndex];
 
@@ -467,7 +493,7 @@ export class Game {
             this.log(`Ignored repeat of ${card.toString()}`);
             return;
         }
-        if (action.meldRef && !Rules.isLegalMeldUpgrade(action.meldRef, card, action.type)) {
+        if (action.meldRef && !Rules.isLegalMeldUpgrade(action.meldRef, card, action.type, action.cards || [], action.mergeMeldRef || null)) {
             this.log(`Ignored illegal ${action.type} with ${card.toString()}`);
             return;
         }
@@ -476,12 +502,33 @@ export class Game {
             const meld = action.meldRef;
             if (meld && card) {
                 const oldType = meld.type;
+                // Remove any extra hand cards attached to this upgrade (e.g., SAO -> HALF-DRAGON / DRAGON)
+                (action.cards || []).forEach(c => {
+                    const idx = player.hand.findIndex(hc => hc.id === c.id);
+                    if (idx !== -1) player.hand.splice(idx, 1);
+                    meld.cards.push(c);
+                });
+                // Merge secondary exposed meld if present (e.g., SAO + KOU -> DRAGON, HALF-DRAGON + SAO -> TWO-DRAGONS-TUSSLING)
+                if (action.mergeMeldRef) {
+                    const mergeIdx = player.exposed.indexOf(action.mergeMeldRef);
+                    if (mergeIdx !== -1) player.exposed.splice(mergeIdx, 1);
+                    meld.cards.push(...action.mergeMeldRef.cards);
+                }
+                if (action.quadTypes) {
+                    meld.quadTypes = action.quadTypes;
+                }
                 meld.type = action.type; // Upgrade type (e.g., CHI or DRAGON)
                 meld.cards.push(card);
                 meld.cards.sort((a, b) => a.characterIndex - b.characterIndex);
                 highlighted.push(card, ...meld.cards);
                 this.log(`${player.name} upgraded ${oldType} into ${action.type} with ${card.toString()}`);
                 this.emit('ACTION_ANNOUNCE', { playerIndex, type: action.type });
+
+                // [RULE-PASSED-RECLAMATION]
+                if (this.activeCardSource !== null && this.activeCardSource !== 'DECK' && this.activeCardSource !== playerIndex) {
+                    const prevP = this.players[this.activeCardSource];
+                    if (prevP) prevP.removePassedCard(card);
+                }
             }
         } else {
             const meldCards = [...action.cards, card];
@@ -491,7 +538,9 @@ export class Game {
                 if (idx !== -1) player.hand.splice(idx, 1);
             });
             // Add Exposed
-            player.exposed.push({ type: action.type, cards: meldCards });
+            const newMeld = { type: action.type, cards: meldCards };
+            if (action.quadTypes) newMeld.quadTypes = action.quadTypes;
+            player.exposed.push(newMeld);
             this.log(`${player.name} performs ${action.type}`);
             this.emit('ACTION_ANNOUNCE', { playerIndex, type: action.type });
             highlighted.push(...meldCards);
@@ -506,17 +555,22 @@ export class Game {
         // Check Harmony
         if (this.finishHarmonyIfWon(player)) return;
 
-        // 2. Discard (if not KAI-ZAO/XIA-CE/DRAGON/SNAKE etc)
+        // 2. Discard (if not KAI-ZAO/XIA-CE)
         const skipDiscard = ['KAI-ZAO', 'XIA-CE'].includes(action.type);
 
         if (!skipDiscard) {
-            if (this.declareBaoziIfNoLegalDiscard(player)) return;
+            // [RULE-NAKED-QUAD-REVEAL]: If player holds a naked 4-of-a-kind in hand, reveal it and skip discard
+            if (this.revealNakedQuadIfPresent(player, highlighted)) {
+                if (this.finishHarmonyIfWon(player)) return;
+            } else {
+                if (this.declareBaoziIfNoLegalDiscard(player)) return;
 
-            const disIdx = Rules.firstLegalDiscardIndex(player.hand);
-            const disCard = player.discard(disIdx);
-            player.addToDiscards(disCard, false);
-            this.log(`${player.name} discarded ${disCard.toString()}`);
-            highlighted.push(disCard);
+                const disIdx = Rules.firstLegalDiscardIndex(player.hand);
+                const disCard = player.discard(disIdx);
+                player.addToDiscards(disCard, false);
+                this.log(`${player.name} discarded ${disCard.toString()}`);
+                highlighted.push(disCard);
+            }
         }
 
         // Immediately clear center-discard div so the discarded card only shows in player's pile
@@ -555,7 +609,8 @@ export class Game {
 
         if (!skipDiscard) {
             const prospective = this.handAfterMeldClaim(p.hand, action);
-            if (Rules.firstLegalDiscardIndex(prospective) === -1) {
+            const hasNakedQuad = Boolean(Rules.findNakedQuadInHand(prospective));
+            if (hasNakedQuad || Rules.firstLegalDiscardIndex(prospective) === -1) {
                 discardCard = null;
             } else if (discardCardIndex === -1 || !p.hand[discardCardIndex]) {
                 console.error("Discard required for " + action.type);
@@ -578,9 +633,12 @@ export class Game {
         }
 
         // Highlight logic
-        const involved = [...action.cards];
+        const involved = [...(action.cards || [])];
         if (action.meldRef) {
             involved.push(...action.meldRef.cards);
+        }
+        if (action.mergeMeldRef) {
+            involved.push(...action.mergeMeldRef.cards);
         }
         if (discardCard) involved.push(discardCard);
         if (this.activeCard) involved.push(this.activeCard);
@@ -600,13 +658,26 @@ export class Game {
             this.log(`Ignored repeat of ${meldCard.toString()}`);
             return;
         }
-        if (action.meldRef && !Rules.isLegalMeldUpgrade(action.meldRef, meldCard, action.type)) {
+        if (action.meldRef && !Rules.isLegalMeldUpgrade(action.meldRef, meldCard, action.type, action.cards || [], action.mergeMeldRef || null)) {
             this.log(`Ignored illegal ${action.type} with ${meldCard ? meldCard.toString() : 'no card'}`);
             return;
         }
         if (action.meldRef) {
             const meld = action.meldRef;
             if (meld && meldCard) {
+                (action.cards || []).forEach(c => {
+                    const idx = p.hand.findIndex(hc => hc.id === c.id);
+                    if (idx !== -1) p.hand.splice(idx, 1);
+                    meld.cards.push(c);
+                });
+                if (action.mergeMeldRef) {
+                    const mergeIdx = p.exposed.indexOf(action.mergeMeldRef);
+                    if (mergeIdx !== -1) p.exposed.splice(mergeIdx, 1);
+                    meld.cards.push(...action.mergeMeldRef.cards);
+                }
+                if (action.quadTypes) {
+                    meld.quadTypes = action.quadTypes;
+                }
                 meld.type = action.type;
                 meld.cards.push(meldCard);
                 meld.cards.sort((a, b) => a.characterIndex - b.characterIndex);
@@ -624,7 +695,9 @@ export class Game {
                 const idx = p.hand.findIndex(hc => hc.id === c.id);
                 if (idx !== -1) p.hand.splice(idx, 1);
             });
-            p.exposed.push({ type: action.type, cards: meldCards });
+            const newMeld = { type: action.type, cards: meldCards };
+            if (action.quadTypes) newMeld.quadTypes = action.quadTypes;
+            p.exposed.push(newMeld);
             this.emit('ACTION_ANNOUNCE', { playerIndex: humanIdx, type: action.type });
 
             // Rule 6 removal
@@ -644,13 +717,17 @@ export class Game {
         // 2. Discard. A must-meld with no legal discard is baozi, including a
         // harmony-shaped hand that scores 0 rewards and therefore cannot win.
         if (!skipDiscard) {
-            if (this.declareBaoziIfNoLegalDiscard(p)) return;
-            if (discardCard) {
-                const dIdx = p.hand.findIndex(c => c.id === discardCard.id);
-                if (dIdx !== -1) {
-                    const dCard = p.discard(dIdx);
-                    p.addToDiscards(dCard, false);
-                    this.log(`${p.name} discarded ${dCard.toString()}`);
+            if (this.revealNakedQuadIfPresent(p)) {
+                if (this.finishHarmonyIfWon(p)) return;
+            } else {
+                if (this.declareBaoziIfNoLegalDiscard(p)) return;
+                if (discardCard) {
+                    const dIdx = p.hand.findIndex(c => c.id === discardCard.id);
+                    if (dIdx !== -1) {
+                        const dCard = p.discard(dIdx);
+                        p.addToDiscards(dCard, false);
+                        this.log(`${p.name} discarded ${dCard.toString()}`);
+                    }
                 }
             }
         }
@@ -829,7 +906,7 @@ export class Game {
     }
 
     handAfterMeldClaim(hand, action) {
-        if (!action || action.meldRef) return hand;
+        if (!action || !action.cards || action.cards.length === 0) return hand;
         const claimedIds = new Set((action.cards || []).map(c => c.id));
         return hand.filter(c => !claimedIds.has(c.id));
     }

@@ -524,6 +524,206 @@ export function runGetActionsTests() {
             ],
             expected: ['CHI']
         },
+        {
+            name: "[RULE-EXPOSED-PRIORITY] Incoming 生 upgrades exposed 尔小 KOU to CHI before in-hand 尔小",
+            hand: [
+                new Card(85, suite5Idx, 0), // 尔 in hand
+                new Card(86, suite5Idx, 1)  // 小 in hand
+            ],
+            card: new Card(87, suite5Idx, 2), // 生
+            isSelf: true,
+            exposed: [
+                { type: 'KOU', cards: [new Card(88, suite5Idx, 0), new Card(89, suite5Idx, 1)] }
+            ],
+            expected: ['CHI'],
+            expectMeldRefType: 'KOU',
+            expectedActionCardsCount: 0
+        },
+        {
+            name: "[RULE-MELD-UPGRADE-SAO] Self-drawn 4th card upgrades exposed SAO + 1 same-suit hand card into HALF-DRAGON",
+            hand: [new Card(90, suite5Idx, 1)], // 小 in hand
+            card: new Card(91, suite5Idx, 0),   // 4th 尔
+            isSelf: true,
+            exposed: [
+                {
+                    type: 'SAO',
+                    cards: [
+                        new Card(92, suite5Idx, 0),
+                        new Card(93, suite5Idx, 0),
+                        new Card(94, suite5Idx, 0)
+                    ]
+                }
+            ],
+            expected: ['HALF-DRAGON'],
+            expectMeldRefType: 'SAO',
+            expectedActionCardsCount: 1
+        },
+        {
+            name: "[RULE-MELD-UPGRADE-SAO] Other's 4th card upgrades exposed SAO + 1 same-suit hand card into HALF-SNAKE",
+            hand: [new Card(90, suite5Idx, 1)], // 小 in hand
+            card: new Card(91, suite5Idx, 0),   // 4th 尔
+            isSelf: false,
+            exposed: [
+                {
+                    type: 'SAO',
+                    cards: [
+                        new Card(92, suite5Idx, 0),
+                        new Card(93, suite5Idx, 0),
+                        new Card(94, suite5Idx, 0)
+                    ]
+                }
+            ],
+            expected: ['HALF-SNAKE'],
+            expectMeldRefType: 'SAO',
+            expectedActionCardsCount: 1
+        },
+        {
+            name: "[RULE-MELD-UPGRADE-SAO] Self-drawn 4th card upgrades exposed SAO + 2 same-suit hand cards into DRAGON",
+            hand: [
+                new Card(95, suite5Idx, 1), // 小
+                new Card(96, suite5Idx, 2)  // 生
+            ],
+            card: new Card(97, suite5Idx, 0), // 4th 尔
+            isSelf: true,
+            exposed: [
+                {
+                    type: 'SAO',
+                    cards: [
+                        new Card(98, suite5Idx, 0),
+                        new Card(99, suite5Idx, 0),
+                        new Card(100, suite5Idx, 0)
+                    ]
+                }
+            ],
+            expected: ['DRAGON'],
+            expectMeldRefType: 'SAO',
+            expectedActionCardsCount: 2
+        },
+        {
+            name: "[RULE-MELD-UPGRADE-SAO] Exposed SAO + exposed KOU of same suit merges into DRAGON (priority over hand)",
+            hand: [
+                new Card(101, suite5Idx, 1), // 小 in hand
+                new Card(102, suite5Idx, 2)  // 生 in hand
+            ],
+            card: new Card(103, suite5Idx, 0), // 4th 尔
+            isSelf: true,
+            exposed: [
+                {
+                    type: 'SAO',
+                    cards: [
+                        new Card(104, suite5Idx, 0),
+                        new Card(105, suite5Idx, 0),
+                        new Card(106, suite5Idx, 0)
+                    ]
+                },
+                {
+                    type: 'KOU',
+                    cards: [
+                        new Card(107, suite5Idx, 1), // 小 in exposed KOU
+                        new Card(108, suite5Idx, 2)  // 生 in exposed KOU
+                    ]
+                }
+            ],
+            expected: ['DRAGON'],
+            expectMeldRefType: 'SAO',
+            expectMergeMeldRefType: 'KOU',
+            expectedActionCardsCount: 0
+        },
+        {
+            name: "[RULE-MELD-UPGRADE-SAO] In-hand 3-of-a-kind + exposed KOU of same suit merges into SNAKE on other's card",
+            hand: [
+                new Card(109, suite5Idx, 0), // 尔
+                new Card(110, suite5Idx, 0), // 尔
+                new Card(111, suite5Idx, 0)  // 尔
+            ],
+            card: new Card(112, suite5Idx, 0), // 4th 尔
+            isSelf: false,
+            exposed: [
+                {
+                    type: 'KOU',
+                    cards: [
+                        new Card(113, suite5Idx, 1), // 小
+                        new Card(114, suite5Idx, 2)  // 生
+                    ]
+                }
+            ],
+            expected: ['SNAKE'],
+            expectMeldRefType: 'KOU',
+            expectedActionCardsCount: 3
+        },
+        {
+            name: "[RULE-MELD-UPGRADE-SAO] Exposed KAI-ZAO cannot absorb a future draw to become HALF-DRAGON",
+            hand: [],
+            card: new Card(115, suite5Idx, 1), // 小 drawn later
+            isSelf: true,
+            exposed: [
+                {
+                    type: 'KAI-ZAO',
+                    cards: [
+                        new Card(116, suite5Idx, 0),
+                        new Card(117, suite5Idx, 0),
+                        new Card(118, suite5Idx, 0),
+                        new Card(119, suite5Idx, 0)
+                    ]
+                }
+            ],
+            expected: ['PASS']
+        },
+        {
+            name: "[RULE-MELD-UPGRADE-TWO-DRAGONS] Exposed HALF-DRAGON + in-hand 3-of-a-kind upgrades to TWO-DRAGONS-TUSSLING",
+            hand: [
+                new Card(120, suite5Idx, 2), // 生
+                new Card(121, suite5Idx, 2), // 生
+                new Card(122, suite5Idx, 2)  // 生
+            ],
+            card: new Card(123, suite5Idx, 2), // 4th 生
+            isSelf: true,
+            exposed: [
+                {
+                    type: 'HALF-DRAGON',
+                    cards: [
+                        new Card(124, suite5Idx, 0), // 尔
+                        new Card(125, suite5Idx, 0), // 尔
+                        new Card(126, suite5Idx, 0), // 尔
+                        new Card(127, suite5Idx, 0), // 尔
+                        new Card(128, suite5Idx, 1)  // 小
+                    ]
+                }
+            ],
+            expected: ['TWO-DRAGONS-TUSSLING'],
+            expectMeldRefType: 'HALF-DRAGON',
+            expectedActionCardsCount: 3
+        },
+        {
+            name: "[RULE-MELD-UPGRADE-TWO-DRAGONS] Exposed HALF-SNAKE + exposed SAO merges into TWO-DRAGONS-TUSSLING",
+            hand: [],
+            card: new Card(129, suite5Idx, 2), // 4th 生
+            isSelf: false,
+            exposed: [
+                {
+                    type: 'HALF-SNAKE',
+                    cards: [
+                        new Card(130, suite5Idx, 0), // 尔
+                        new Card(131, suite5Idx, 0), // 尔
+                        new Card(132, suite5Idx, 0), // 尔
+                        new Card(133, suite5Idx, 0), // 尔
+                        new Card(134, suite5Idx, 1)  // 小
+                    ]
+                },
+                {
+                    type: 'SAO',
+                    cards: [
+                        new Card(135, suite5Idx, 2), // 生
+                        new Card(136, suite5Idx, 2), // 生
+                        new Card(137, suite5Idx, 2)  // 生
+                    ]
+                }
+            ],
+            expected: ['TWO-DRAGONS-TUSSLING'],
+            expectMeldRefType: 'HALF-SNAKE',
+            expectMergeMeldRefType: 'SAO',
+            expectedActionCardsCount: 0
+        },
         (() => {
             const state = buildScreenshotHarmonyState();
             return {
@@ -555,7 +755,14 @@ export function runGetActionsTests() {
         const kouAction = actions.find(a => a.type === 'KOU');
         const isPartnerMatch = tc.expectedKouPartnerId === undefined ||
             (kouAction && kouAction.cards.length === 1 && kouAction.cards[0].id === tc.expectedKouPartnerId);
-        const isMatch = isTypeMatch && isPartnerMatch;
+        const primaryAction = actions[0];
+        const isMeldRefMatch = tc.expectMeldRefType === undefined ||
+            (primaryAction && primaryAction.meldRef && primaryAction.meldRef.type === tc.expectMeldRefType);
+        const isMergeMeldRefMatch = tc.expectMergeMeldRefType === undefined ||
+            (primaryAction && primaryAction.mergeMeldRef && primaryAction.mergeMeldRef.type === tc.expectMergeMeldRefType);
+        const isCardsCountMatch = tc.expectedActionCardsCount === undefined ||
+            (primaryAction && Array.isArray(primaryAction.cards) && primaryAction.cards.length === tc.expectedActionCardsCount);
+        const isMatch = isTypeMatch && isPartnerMatch && isMeldRefMatch && isMergeMeldRefMatch && isCardsCountMatch;
 
         if (isMatch) {
             console.log(`✅ ${tc.name}: Passed`);

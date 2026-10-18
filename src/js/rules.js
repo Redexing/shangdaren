@@ -13,6 +13,7 @@ const REWARD_WEIGHTS = {
     'self-draw': 1,
     'score-20': 1,
     'dragon-snake': 1,
+    'two-dragons-tussling': 3,
     'special-quad': 2,
     'all-meat': 1,
     'big-red': 3,
@@ -62,16 +63,17 @@ export class Rules {
     }
 
     // A meld upgrade has to still be the meld it was when the action was chosen.
-    // A CHI only completes a 2-card KOU of the same suit.
-    static isLegalMeldUpgrade(meld, card, actionType) {
+    // Exposed PENG melds are immutable ([RULE-PENG-IMMUTABLE]).
+    static isLegalMeldUpgrade(meld, card, actionType, extraCards = [], mergeMeld = null) {
         if (!meld || !card || !Array.isArray(meld.cards) || meld.cards.length === 0) return false;
+        if (meld.type === 'PENG') return false;
         if (meld.cards.some(c => c.id === card.id)) return false;
         const sameSuit = meld.cards.every(c => c.suiteIndex === card.suiteIndex);
+        if (!sameSuit) return false;
 
         if (actionType === 'CHI') {
             return meld.type === 'KOU'
                 && meld.cards.length === 2
-                && sameSuit
                 && new Set(meld.cards.map(c => c.characterIndex)).size === 2
                 && meld.cards.every(c => c.characterIndex !== card.characterIndex);
         }
@@ -80,10 +82,41 @@ export class Rules {
                 && meld.cards.length === 3
                 && meld.cards.every(c => c.typeId === card.typeId);
         }
+        if (actionType === 'HALF-DRAGON' || actionType === 'HALF-SNAKE') {
+            return meld.type === 'SAO'
+                && meld.cards.length === 3
+                && meld.cards.every(c => c.typeId === card.typeId)
+                && Array.isArray(extraCards) && extraCards.length === 1
+                && extraCards[0].suiteIndex === card.suiteIndex
+                && extraCards[0].characterIndex !== card.characterIndex;
+        }
         if (actionType === 'DRAGON' || actionType === 'SNAKE') {
-            return (meld.type === 'HALF-DRAGON' || meld.type === 'HALF-SNAKE')
-                && sameSuit
-                && meld.cards.every(c => c.characterIndex !== card.characterIndex);
+            if (meld.type === 'HALF-DRAGON' || meld.type === 'HALF-SNAKE') {
+                return meld.cards.every(c => c.characterIndex !== card.characterIndex);
+            }
+            if (meld.type === 'SAO' && meld.cards.length === 3 && meld.cards.every(c => c.typeId === card.typeId)) {
+                const supp = mergeMeld ? mergeMeld.cards : extraCards;
+                return (!mergeMeld || mergeMeld.type === 'KOU')
+                    && Array.isArray(supp) && supp.length === 2
+                    && supp.every(c => c.suiteIndex === card.suiteIndex && c.characterIndex !== card.characterIndex)
+                    && new Set(supp.map(c => c.characterIndex)).size === 2;
+            }
+            if (meld.type === 'KOU' && meld.cards.length === 2) {
+                return Array.isArray(extraCards) && extraCards.length === 3
+                    && extraCards.every(c => c.typeId === card.typeId)
+                    && meld.cards.every(c => c.characterIndex !== card.characterIndex);
+            }
+            return false;
+        }
+        if (actionType === 'TWO-DRAGONS-TUSSLING') {
+            if (meld.type === 'HALF-DRAGON' || meld.type === 'HALF-SNAKE') {
+                const supp = mergeMeld ? mergeMeld.cards : extraCards;
+                return (!mergeMeld || mergeMeld.type === 'SAO')
+                    && Array.isArray(supp) && supp.length === 3
+                    && supp.every(c => c.typeId === card.typeId)
+                    && !meld.cards.some(c => c.typeId === card.typeId);
+            }
+            return false;
         }
         return false;
     }
@@ -139,6 +172,17 @@ export class Rules {
                 case 'HALF-SNAKE':
                     total += isMeat ? 12 : 6;
                     break;
+                case 'TWO-DRAGONS-TUSSLING': {
+                    const quadTypes = Array.isArray(meld.quadTypes) && meld.quadTypes.length === 2
+                        ? meld.quadTypes
+                        : ['KAI-ZAO', 'KAI-ZAO'];
+                    quadTypes.forEach(qt => {
+                        if (qt === 'KAI-ZAO') total += isMeat ? 12 : 8;
+                        else total += isMeat ? 10 : 6;
+                    });
+                    if (isMeat) total += 2;
+                    break;
+                }
             }
         });
         return total;
@@ -165,9 +209,32 @@ export class Rules {
         if (remaining.length === 0) return melds;
 
         const card = remaining[0];
+        const quads = remaining.filter(c => c.typeId === card.typeId);
+
+        // 0. Try Two-Dragons-Tussling (9 cards: two 4-of-a-kind + 1 other from same suit)
+        if (quads.length === 4) {
+            const suiteCards = remaining.filter(c => c.suiteIndex === card.suiteIndex && c.typeId !== card.typeId);
+            const otherChars = [...new Set(suiteCards.map(c => c.characterIndex))];
+            if (otherChars.length === 2) {
+                for (let i = 0; i < 2; i++) {
+                    const secondQuadChar = otherChars[i];
+                    const singleChar = otherChars[1 - i];
+                    const secondQuads = suiteCards.filter(c => c.characterIndex === secondQuadChar);
+                    const singleCard = suiteCards.find(c => c.characterIndex === singleChar);
+                    if (secondQuads.length === 4 && singleCard) {
+                        const twoDragonsSet = [...quads, ...secondQuads, singleCard];
+                        const nextRemaining = remaining.filter(c => !twoDragonsSet.some(d => d.id === c.id));
+                        const res = this._partitionRecursive(
+                            nextRemaining,
+                            [...melds, { type: 'TWO-DRAGONS-TUSSLING', cards: twoDragonsSet }]
+                        );
+                        if (res) return res;
+                    }
+                }
+            }
+        }
 
         // 1. Try Dragon/Snake (6 cards: 4-of-a-kind + 2 others from suite)
-        const quads = remaining.filter(c => c.typeId === card.typeId);
         if (quads.length === 4) {
             const suiteCards = remaining.filter(c => c.suiteIndex === card.suiteIndex && c.typeId !== card.typeId);
             const uniqueChars = [...new Set(suiteCards.map(c => c.characterIndex))];
@@ -240,17 +307,39 @@ export class Rules {
         return null;
     }
 
+    static _countKous(melds) {
+        let kous = 0;
+        (melds || []).forEach(m => {
+            if (m.type === 'KOU' || m.type === 'HALF-DRAGON' || m.type === 'HALF-SNAKE') kous++;
+        });
+        return kous;
+    }
+
+    static _partitionWithExposed(exposedMelds, handPool) {
+        const exposedKous = this._countKous(exposedMelds);
+        if (exposedKous > 2) return null;
+        if (handPool.length === 0) {
+            return exposedKous === 2 ? [...exposedMelds] : null;
+        }
+        const handPartition = this.findPerfectPartition(handPool, 2 - exposedKous);
+        if (!handPartition) return null;
+        return [...exposedMelds, ...handPartition];
+    }
+
     /**
      * Structural harmony shape: card count, perfect partition, exactly 2 KOU.
+     * Exposed melds can grow or merge with activeCard, but can never be split ([RULE-MELD-NO-SPLIT]).
      * Returns null when the set cannot be a winning hand.
      * Score and reward gates are applied by the callers.
      */
-    static assessHarmony(hand, exposed = [], activeCard = null) {
-        const allCards = [...(hand || [])];
+    static assessHarmony(hand, exposed = [], activeCard = null, options = {}) {
+        const handList = [...(hand || [])];
+        const exposedList = (exposed || []).map(m => ({ ...m, cards: [...m.cards] }));
+        const allCards = [...handList];
         if (activeCard) allCards.push(activeCard);
 
         let expectedLength = 16;
-        (exposed || []).forEach(meld => {
+        exposedList.forEach(meld => {
             allCards.push(...meld.cards);
             if (meld.type === 'KAI-ZAO' || meld.type === 'XIA-CE') {
                 expectedLength += 1;
@@ -259,7 +348,123 @@ export class Rules {
 
         if (allCards.length !== expectedLength) return null;
 
-        const partition = this.findPerfectPartition(allCards, 2);
+        let partition = null;
+        const isSelf = options.isSelfDraw !== undefined ? Boolean(options.isSelfDraw) : true;
+
+        // 1. Priority: try legal exposed meld upgrades/merges when activeCard is present ([RULE-EXPOSED-PRIORITY])
+        if (activeCard && exposedList.length > 0) {
+            const sameInHand = handList.filter(c => c.typeId === activeCard.typeId);
+            const suiteInHand = handList.filter(c => c.suiteIndex === activeCard.suiteIndex && c.typeId !== activeCard.typeId);
+            const availSuite = suiteInHand.filter(c => handList.filter(hc => hc.typeId === c.typeId).length < 3);
+            const availUnique = Array.from(new Set(availSuite.map(c => c.characterIndex)));
+
+            for (let i = 0; i < exposedList.length && !partition; i++) {
+                const m = exposedList[i];
+                // KOU -> CHI
+                if (this.isLegalMeldUpgrade(m, activeCard, 'CHI')) {
+                    const nextExp = exposedList.map((em, idx) => idx === i ? { ...em, type: 'CHI', cards: [...em.cards, activeCard] } : em);
+                    partition = this._partitionWithExposed(nextExp, handList);
+                }
+                // HALF-DRAGON/HALF-SNAKE -> TWO-DRAGONS-TUSSLING (with exposed SAO or 3 in hand)
+                if (!partition && (m.type === 'HALF-DRAGON' || m.type === 'HALF-SNAKE')) {
+                    const saoIdx = exposedList.findIndex((em, idx) => idx !== i && em.type === 'SAO' && em.cards[0].typeId === activeCard.typeId);
+                    const q1 = m.type === 'HALF-DRAGON' ? 'KAI-ZAO' : 'XIA-CE';
+                    const q2 = isSelf ? 'KAI-ZAO' : 'XIA-CE';
+                    if (saoIdx !== -1 && this.isLegalMeldUpgrade(m, activeCard, 'TWO-DRAGONS-TUSSLING', [], exposedList[saoIdx])) {
+                        const nextExp = exposedList
+                            .filter((_, idx) => idx !== saoIdx)
+                            .map(em => em === m ? {
+                                ...em,
+                                type: 'TWO-DRAGONS-TUSSLING',
+                                cards: [...em.cards, ...exposedList[saoIdx].cards, activeCard],
+                                quadTypes: [q1, q2]
+                            } : em);
+                        partition = this._partitionWithExposed(nextExp, handList);
+                    } else if (sameInHand.length === 3 && this.isLegalMeldUpgrade(m, activeCard, 'TWO-DRAGONS-TUSSLING', sameInHand)) {
+                        const nextExp = exposedList.map((em, idx) => idx === i ? {
+                            ...em,
+                            type: 'TWO-DRAGONS-TUSSLING',
+                            cards: [...em.cards, ...sameInHand, activeCard],
+                            quadTypes: [q1, q2]
+                        } : em);
+                        const remHand = handList.filter(c => !sameInHand.some(sc => sc.id === c.id));
+                        partition = this._partitionWithExposed(nextExp, remHand);
+                    } else if (this.isLegalMeldUpgrade(m, activeCard, isSelf ? 'DRAGON' : 'SNAKE')) {
+                        const nextExp = exposedList.map((em, idx) => idx === i ? {
+                            ...em,
+                            type: isSelf ? 'DRAGON' : 'SNAKE',
+                            cards: [...em.cards, activeCard]
+                        } : em);
+                        partition = this._partitionWithExposed(nextExp, handList);
+                    }
+                }
+                // SAO -> DRAGON/SNAKE or HALF-DRAGON/HALF-SNAKE
+                if (!partition && m.type === 'SAO' && m.cards[0].typeId === activeCard.typeId) {
+                    const kouIdx = exposedList.findIndex((em, idx) => idx !== i && em.type === 'KOU' && em.cards[0].suiteIndex === activeCard.suiteIndex);
+                    if (kouIdx !== -1 && this.isLegalMeldUpgrade(m, activeCard, isSelf ? 'DRAGON' : 'SNAKE', [], exposedList[kouIdx])) {
+                        const nextExp = exposedList
+                            .filter((_, idx) => idx !== kouIdx)
+                            .map(em => em === m ? {
+                                ...em,
+                                type: isSelf ? 'DRAGON' : 'SNAKE',
+                                cards: [...em.cards, ...exposedList[kouIdx].cards, activeCard]
+                            } : em);
+                        partition = this._partitionWithExposed(nextExp, handList);
+                    } else if (availUnique.length >= 2) {
+                        const c1 = availSuite.find(c => c.characterIndex === availUnique[0]);
+                        const c2 = availSuite.find(c => c.characterIndex === availUnique[1]);
+                        const nextExp = exposedList.map((em, idx) => idx === i ? {
+                            ...em,
+                            type: isSelf ? 'DRAGON' : 'SNAKE',
+                            cards: [...em.cards, c1, c2, activeCard]
+                        } : em);
+                        const remHand = handList.filter(c => c.id !== c1.id && c.id !== c2.id);
+                        partition = this._partitionWithExposed(nextExp, remHand);
+                    } else if (availUnique.length === 1) {
+                        const c1 = availSuite.find(c => c.characterIndex === availUnique[0]);
+                        const nextExp = exposedList.map((em, idx) => idx === i ? {
+                            ...em,
+                            type: isSelf ? 'HALF-DRAGON' : 'HALF-SNAKE',
+                            cards: [...em.cards, c1, activeCard]
+                        } : em);
+                        const remHand = handList.filter(c => c.id !== c1.id);
+                        partition = this._partitionWithExposed(nextExp, remHand);
+                    }
+                }
+                // KOU + 3-of-a-kind in hand + 4th activeCard -> DRAGON/SNAKE
+                if (!partition && m.type === 'KOU' && sameInHand.length === 3 && this.isLegalMeldUpgrade(m, activeCard, isSelf ? 'DRAGON' : 'SNAKE', sameInHand)) {
+                    const nextExp = exposedList.map((em, idx) => idx === i ? {
+                        ...em,
+                        type: isSelf ? 'DRAGON' : 'SNAKE',
+                        cards: [...em.cards, ...sameInHand, activeCard]
+                    } : em);
+                    const remHand = handList.filter(c => !sameInHand.some(sc => sc.id === c.id));
+                    partition = this._partitionWithExposed(nextExp, remHand);
+                }
+            }
+        }
+
+        // 2. Otherwise keep exposed melds intact and partition hand (+ activeCard)
+        if (!partition) {
+            const handPool = activeCard ? [...handList, activeCard] : handList;
+            partition = this._partitionWithExposed(exposedList, handPool);
+
+            // If activeCard was already placed into hand, allow growing an exposed KOU into CHI
+            if (!partition && !activeCard && exposedList.length > 0) {
+                for (let i = 0; i < exposedList.length && !partition; i++) {
+                    const m = exposedList[i];
+                    if (m.type === 'KOU') {
+                        const match = handPool.find(c => this.isLegalMeldUpgrade(m, c, 'CHI'));
+                        if (match) {
+                            const nextExp = exposedList.map((em, idx) => idx === i ? { ...em, type: 'CHI', cards: [...em.cards, match] } : em);
+                            const remHand = handPool.filter(c => c.id !== match.id);
+                            partition = this._partitionWithExposed(nextExp, remHand);
+                        }
+                    }
+                }
+            }
+        }
+
         if (!partition) return null;
 
         const points = this.calculateTotalPoints(partition);
@@ -274,6 +479,7 @@ export class Rules {
         if (isSelfDraw) reasons.push('self-draw');
         if (points >= HIGH_SCORE_THRESHOLD) reasons.push('score-20');
         if (partition.some(m => m.type === 'DRAGON' || m.type === 'SNAKE')) reasons.push('dragon-snake');
+        if (partition.some(m => m.type === 'TWO-DRAGONS-TUSSLING')) reasons.push('two-dragons-tussling');
         if (this.hasRewardQuad(allCards)) reasons.push('special-quad');
         if (allCards.length > 0 && allCards.every(c => this.isMeat(c.suiteIndex))) reasons.push('all-meat');
         if (allCards.length > 0 && allCards.every(c => c.isRed)) reasons.push('big-red');
@@ -300,7 +506,7 @@ export class Rules {
      * isSelfDraw is true only when this player drew the completing card from the deck.
      */
     static calculateRewards(hand, exposed, activeCard, options = {}) {
-        const assessed = this.assessHarmony(hand, exposed, activeCard);
+        const assessed = this.assessHarmony(hand, exposed, activeCard, options);
         if (!assessed || !assessed.meetsScore) return { total: 0, reasons: [] };
 
         const reasons = this.rewardReasons(
@@ -315,6 +521,29 @@ export class Rules {
     static canDeclareHarmony(hand, exposed, activeCard, options = {}) {
         const reward = this.calculateRewards(hand, exposed, activeCard, options);
         return reward.total >= 1;
+    }
+
+    /**
+     * [RULE-NAKED-QUAD-REVEAL]: Finds a 4-of-a-kind in hand where the player holds
+     * no other cards from the same suit in hand.
+     */
+    static findNakedQuadInHand(hand) {
+        if (!Array.isArray(hand) || hand.length < 4) return null;
+        const byType = new Map();
+        hand.forEach(c => {
+            if (!byType.has(c.typeId)) byType.set(c.typeId, []);
+            byType.get(c.typeId).push(c);
+        });
+        for (const [, group] of byType.entries()) {
+            if (group.length === 4) {
+                const suiteIdx = group[0].suiteIndex;
+                const sameSuitCount = hand.filter(c => c.suiteIndex === suiteIdx).length;
+                if (sameSuitCount === 4) {
+                    return group;
+                }
+            }
+        }
+        return null;
     }
 
     static firstLegalDiscardIndex(hand) {
@@ -379,59 +608,122 @@ export class Rules {
         const sameInHand = hand.filter(c => c.typeId === card.typeId);
         const count = sameInHand.length;
         const suiteInHand = hand.filter(c => c.suiteIndex === card.suiteIndex && c.typeId !== card.typeId);
-        const uniqueInSuite = Array.from(new Set(suiteInHand.map(c => c.characterIndex)));
+        // Do not break a 3-of-a-kind or 4-of-a-kind in hand to supply extra cards
+        const availSuiteInHand = suiteInHand.filter(c => hand.filter(hc => hc.typeId === c.typeId).length < 3);
+        const uniqueInSuite = Array.from(new Set(availSuiteInHand.map(c => c.characterIndex)));
 
         const ownPasses = options.passedCards || [];
         const upstreamPasses = options.upstreamPassedCards || [];
         const suiteBroken = this.isKouClosed(card, discards, ownPasses, upstreamPasses);
 
-        // expansion upgrade: HALF-DRAGON/SNAKE into DRAGON/SNAKE
-        const halfMelds = exposed.filter(m => m.type === 'HALF-DRAGON' || m.type === 'HALF-SNAKE');
-        halfMelds.forEach(meld => {
-            const meldSuite = meld.cards[0].suiteIndex;
-            if (meldSuite === card.suiteIndex) {
-                const existingChars = meld.cards.map(c => c.characterIndex);
-                if (!existingChars.includes(card.characterIndex)) {
+        const saoMatch = exposed.find(m => m.type === 'SAO' && m.cards[0].typeId === card.typeId);
+        const halfMeldInSuite = exposed.find(
+            m => (m.type === 'HALF-DRAGON' || m.type === 'HALF-SNAKE') && m.cards[0].suiteIndex === card.suiteIndex
+        );
+        const kouInExposed = exposed.filter(m => m.type === 'KOU');
+        const sameSuitExposedKou = kouInExposed.find(
+            m => m.cards[0].suiteIndex === card.suiteIndex
+                && m.cards.length === 2
+                && m.cards.every(c => c.characterIndex !== card.characterIndex)
+        );
+
+        // [RULE-MELD-UPGRADE-SAO] & [RULE-MELD-UPGRADE-TWO-DRAGONS] & [RULE-EXPOSED-PRIORITY]
+        if (count === 3 || saoMatch) {
+            const firstQuadFromHalf = halfMeldInSuite
+                ? (halfMeldInSuite.type === 'HALF-DRAGON' ? 'KAI-ZAO' : 'XIA-CE')
+                : null;
+            const secondQuadType = isSelf ? 'KAI-ZAO' : 'XIA-CE';
+
+            // 1a. Exposed HALF-DRAGON/HALF-SNAKE + 2nd quad of same suit -> TWO-DRAGONS-TUSSLING
+            if (halfMeldInSuite && !halfMeldInSuite.cards.some(c => c.typeId === card.typeId)) {
+                if (saoMatch) {
                     moves.push({
-                        type: isSelf ? 'DRAGON' : 'SNAKE',
+                        type: 'TWO-DRAGONS-TUSSLING',
                         cards: [],
-                        meldRef: meld
+                        meldRef: halfMeldInSuite,
+                        mergeMeldRef: saoMatch,
+                        quadTypes: [firstQuadFromHalf, secondQuadType]
+                    });
+                } else {
+                    moves.push({
+                        type: 'TWO-DRAGONS-TUSSLING',
+                        cards: sameInHand,
+                        meldRef: halfMeldInSuite,
+                        quadTypes: [firstQuadFromHalf, secondQuadType]
                     });
                 }
             }
-        });
-
-        // 1. Dragon / Snake detection (4-of-a-kind + 2 others)
-        if (count === 3 && uniqueInSuite.length >= 2) {
-            const c1 = suiteInHand.find(c => c.characterIndex === uniqueInSuite[0]);
-            const c2 = suiteInHand.find(c => c.characterIndex === uniqueInSuite[1]);
-            moves.push({
-                type: isSelf ? 'DRAGON' : 'SNAKE',
-                cards: [...sameInHand, c1, c2]
-            });
-        }
-        // 2. Half-Dragon / Half-Snake (4-of-a-kind + 1 other)
-        else if (count === 3 && uniqueInSuite.length >= 1) {
-            const c1 = suiteInHand.find(c => c.characterIndex === uniqueInSuite[0]);
-            moves.push({
-                type: isSelf ? 'HALF-DRAGON' : 'HALF-SNAKE',
-                cards: [...sameInHand, c1]
-            });
-        }
-        // 3. XIA-CE / KAI-ZAO (4-of-a-kind)
-        else if (count === 3) {
-            moves.push({
-                type: isSelf ? 'KAI-ZAO' : 'XIA-CE',
-                cards: sameInHand
-            });
-        } else {
-            // Upgrade SAO to KAI-ZAO / XIA-CE
-            const saoMatch = exposed.find(m => m.type === 'SAO' && m.cards[0].typeId === card.typeId);
-            if (saoMatch) {
+            // 1b. Merge with exposed KOU of same suit -> DRAGON / SNAKE ([RULE-EXPOSED-PRIORITY])
+            else if (sameSuitExposedKou) {
+                if (saoMatch) {
+                    moves.push({
+                        type: isSelf ? 'DRAGON' : 'SNAKE',
+                        cards: [],
+                        meldRef: saoMatch,
+                        mergeMeldRef: sameSuitExposedKou
+                    });
+                } else {
+                    moves.push({
+                        type: isSelf ? 'DRAGON' : 'SNAKE',
+                        cards: sameInHand,
+                        meldRef: sameSuitExposedKou
+                    });
+                }
+            }
+            // 1c. Other 2 cards of same suit in HAND -> DRAGON / SNAKE
+            else if (uniqueInSuite.length >= 2) {
+                const c1 = availSuiteInHand.find(c => c.characterIndex === uniqueInSuite[0]);
+                const c2 = availSuiteInHand.find(c => c.characterIndex === uniqueInSuite[1]);
+                if (saoMatch) {
+                    moves.push({
+                        type: isSelf ? 'DRAGON' : 'SNAKE',
+                        cards: [c1, c2],
+                        meldRef: saoMatch
+                    });
+                } else {
+                    moves.push({
+                        type: isSelf ? 'DRAGON' : 'SNAKE',
+                        cards: [...sameInHand, c1, c2]
+                    });
+                }
+            }
+            // 1d. 1 other card of same suit in HAND -> HALF-DRAGON / HALF-SNAKE
+            else if (uniqueInSuite.length >= 1) {
+                const c1 = availSuiteInHand.find(c => c.characterIndex === uniqueInSuite[0]);
+                if (saoMatch) {
+                    moves.push({
+                        type: isSelf ? 'HALF-DRAGON' : 'HALF-SNAKE',
+                        cards: [c1],
+                        meldRef: saoMatch
+                    });
+                } else {
+                    moves.push({
+                        type: isSelf ? 'HALF-DRAGON' : 'HALF-SNAKE',
+                        cards: [...sameInHand, c1]
+                    });
+                }
+            }
+            // 1e. Pure 4-of-a-kind -> KAI-ZAO / XIA-CE
+            else if (saoMatch) {
                 moves.push({
                     type: isSelf ? 'KAI-ZAO' : 'XIA-CE',
                     cards: [],
                     meldRef: saoMatch
+                });
+            } else {
+                moves.push({
+                    type: isSelf ? 'KAI-ZAO' : 'XIA-CE',
+                    cards: sameInHand
+                });
+            }
+        } else if (halfMeldInSuite) {
+            // Expansion upgrade: HALF-DRAGON/SNAKE into DRAGON/SNAKE
+            const existingChars = halfMeldInSuite.cards.map(c => c.characterIndex);
+            if (!existingChars.includes(card.characterIndex)) {
+                moves.push({
+                    type: isSelf ? 'DRAGON' : 'SNAKE',
+                    cards: [],
+                    meldRef: halfMeldInSuite
                 });
             }
         }
@@ -444,44 +736,46 @@ export class Rules {
             });
         }
 
-        const kouInExposed = exposed.filter(m => m.type === 'KOU');
         const allSuiteCardsInHand = hand.filter(c => c.suiteIndex === card.suiteIndex);
 
-        // 5a. CHI (Complete Suite)
-        const needed = [0, 1, 2].filter(i => i !== card.characterIndex);
-        const c1 = hand.find(c => c.suiteIndex === card.suiteIndex && c.characterIndex === needed[0]);
-        const c2 = hand.find(c => c.suiteIndex === card.suiteIndex && c.characterIndex === needed[1]);
+        // 5a. CHI ([RULE-EXPOSED-PRIORITY]: upgrade exposed KOU to CHI first before forming CHI from hand)
+        // When the 4th identical card completes a quad/dragon/snake (count === 3 || saoMatch), it cannot downgrade to CHI.
+        if (count < 3 && !saoMatch) {
+            let upgradedExposedKou = false;
+            kouInExposed.forEach(meld => {
+                if (this.isLegalMeldUpgrade(meld, card, 'CHI')) {
+                    moves.push({ type: 'CHI', cards: [], meldRef: meld });
+                    upgradedExposedKou = true;
+                }
+            });
 
-        if (c1 && c2) {
-            // Determine if this CHI forms a "New" suite or just redundant
-            const counts = [0, 0, 0];
-            const allSuiteCards = [...hand, ...exposed.flatMap(m => m.cards)].filter(c => c.suiteIndex === card.suiteIndex);
-            allSuiteCards.forEach(c => counts[c.characterIndex]++);
-            const oldSuites = Math.min(counts[0], counts[1], counts[2]);
-            const nextCounts = [...counts];
-            nextCounts[card.characterIndex]++;
-            const newSuites = Math.min(nextCounts[0], nextCounts[1], nextCounts[2]);
+            const needed = [0, 1, 2].filter(i => i !== card.characterIndex);
+            const c1 = hand.find(c => c.suiteIndex === card.suiteIndex && c.characterIndex === needed[0]);
+            const c2 = hand.find(c => c.suiteIndex === card.suiteIndex && c.characterIndex === needed[1]);
 
-            if (newSuites > oldSuites) {
-                // Rule check: No breaking 3-of-a-kind or 4-of-a-kind to form a CHI
-                const c1HandCount = hand.filter(c => c.typeId === c1.typeId).length;
-                const c2HandCount = hand.filter(c => c.typeId === c2.typeId).length;
+            if (!upgradedExposedKou && c1 && c2) {
+                // Determine if this CHI forms a "New" suite or just redundant
+                const counts = [0, 0, 0];
+                const allSuiteCards = [...hand, ...exposed.flatMap(m => m.cards)].filter(c => c.suiteIndex === card.suiteIndex);
+                allSuiteCards.forEach(c => counts[c.characterIndex]++);
+                const oldSuites = Math.min(counts[0], counts[1], counts[2]);
+                const nextCounts = [...counts];
+                nextCounts[card.characterIndex]++;
+                const newSuites = Math.min(nextCounts[0], nextCounts[1], nextCounts[2]);
 
-                if (c1HandCount < 3 && c2HandCount < 3) {
-                    moves.push({ type: 'CHI', cards: [c1, c2] });
+                if (newSuites > oldSuites) {
+                    // Rule check: No breaking 3-of-a-kind or 4-of-a-kind to form a CHI
+                    const c1HandCount = hand.filter(c => c.typeId === c1.typeId).length;
+                    const c2HandCount = hand.filter(c => c.typeId === c2.typeId).length;
+
+                    if (c1HandCount < 3 && c2HandCount < 3) {
+                        moves.push({ type: 'CHI', cards: [c1, c2] });
+                    }
                 }
             }
         }
 
-        // CHI onto KOU in exposed. The meld must still be a same-suit pair.
-        kouInExposed.forEach(meld => {
-            if (this.isLegalMeldUpgrade(meld, card, 'CHI')) {
-                moves.push({ type: 'CHI', cards: [], meldRef: meld });
-            }
-        });
-
-        // 5b. KOU (2 different cards of same suite) - Optional, allowed for turn and interrupters? 
-        // Based on test Case q, it should be available even if isSelf is false.
+        // 5b. KOU (2 different cards of same suite) - Optional
         if (kouInExposed.length < 2 && !suiteBroken && moves.length === 0) {
             const others = [0, 1, 2].filter(i => i !== card.characterIndex);
             const sCounts = [0, 0, 0];
@@ -514,7 +808,10 @@ export class Rules {
         // Must-trigger rules: PENG, SAO, CHI, etc. are mandatory.
         // HARMONY must-vs-choice depends on who drew the card (handled in game.js).
         // PASS is only allowed if no mandatory moves are present.
-        const mandatoryTypes = ['SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'];
+        const mandatoryTypes = [
+            'SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE',
+            'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
+        ];
         const hasMandatory = moves.some(m => mandatoryTypes.includes(m.type));
 
         if (!hasMandatory) {
