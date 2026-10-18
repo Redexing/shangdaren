@@ -188,6 +188,7 @@
 
         .meld-cards {
             display: flex;
+            flex-wrap: wrap;
             gap: 5px;
         }
 
@@ -422,6 +423,31 @@
             <div id="meld-examples-container">
                 <!-- JS will populate -->
             </div>
+
+            <h3 lang="en">Meld Formation &amp; Upgrades</h3>
+            <h3 lang="zh">牌组形成与升级规则</h3>
+            <ul lang="en">
+                <li><strong>Exposed Priority:</strong> When an incoming card can form or grow a meld in both your exposed area and your hand, priority is given to forming or upgrading the exposed meld first (e.g., if you have an 尔小 KOU in both exposed and hand, an incoming 生 upgrades the exposed KOU to CHI first).</li>
+                <li><strong>Grow or Merge Only (Never Split):</strong> Melds in the exposed area can grow or merge, but can never be split:
+                    <ul>
+                        <li><strong>KOU &rarr; CHI:</strong> An exposed KOU grows into a CHI upon claiming the missing third character of the suit.</li>
+                        <li><strong>3-of-a-Kind / SAO Upgrades:</strong> A 3-of-a-kind in hand or an exposed SAO (self-drawn 3-of-a-kind) grows when the 4th identical card arrives into <strong>KAI-ZAO / XIA-CE</strong> (if no same-suit cards are attached); into <strong>HALF-DRAGON / HALF-SNAKE</strong> if you already hold 1 other card of the same suit in hand at that moment (this extra card cannot come from a future draw or another player); or into a full <strong>DRAGON / SNAKE</strong> if you hold the other 2 cards of the same suit in hand or in exposed melds.</li>
+                        <li><strong>HALF-DRAGON / HALF-SNAKE &rarr; TWO-DRAGONS-TUSSLING (双龙抱柱):</strong> Grows when a second 4-of-a-kind from the same suit is formed (under standard quad rules) alongside the 1 extra card of that suit from your hand.</li>
+                        <li><strong>PENG Cannot Grow:</strong> An exposed PENG meld cannot be further grown or reformed.</li>
+                    </ul>
+                </li>
+            </ul>
+            <ul lang="zh">
+                <li><strong>明牌优先:</strong> 当一张来牌既能与明牌区的牌组结合，也能与手牌（暗牌）结合时，优先形成或升级明牌区的牌组（例如：若明牌区与手牌中都有“尔小”口，摸到或接“生”时优先将明牌区的口升级为吃）。</li>
+                <li><strong>只合不拆（明牌升级与合并）:</strong> 明牌区的牌组可以继续生长或合并，但绝不能拆分：
+                    <ul>
+                        <li><strong>口 &rarr; 吃:</strong> 明牌区的“口”在获得同系列第三张牌后升级为“吃”。</li>
+                        <li><strong>三张 / 绍的升级:</strong> 手牌中的三张相同牌或明牌区的“绍”（自摸三张）在遇到第四张相同牌时，可升级为<strong>开招 / 下扯</strong>；若此时手牌中已有同系列的另外 1 张牌，则升级为<strong>半龙 / 半蛇</strong>（该额外单牌不能来自后续摸牌或他人之牌）；若在手牌或明牌中已有同系列的另外 2 张牌，则可合并升级为完整的<strong>龙 / 蛇</strong>。</li>
+                        <li><strong>半龙 / 半蛇 &rarr; 双龙抱柱:</strong> 当同系列的第二组四张按正常四张规则成型，加上手牌中同系列的另外 1 张牌时，可升级为<strong>双龙抱柱 (TWO-DRAGONS-TUSSLING)</strong>。</li>
+                        <li><strong>碰不可再变:</strong> 明牌区的“碰”不能再继续升级或重组。</li>
+                    </ul>
+                </li>
+            </ul>
         </section>
 
         <section class="section-card">
@@ -441,6 +467,8 @@
             <div class="must-rule" lang="zh">若该牌可让你宣布“和”，且由你自己摸到或由上家（右侧）摸出/搬出，则必须接牌。若由下家（左侧）摸出，则可选择放弃（例如争取自摸加分）。</div>
             <div class="must-rule" lang="en">No do-over: after you discard any card of a suit, pass a card of that suit you drew, or your upstream player has already passed a card of that suit, you cannot form KOU in that suit for the rest of the game. The card your upstream player is passing to you right now still may be used for KOU. If that card is the last one you need, HARMONY stays available and KOU does not.</div>
             <div class="must-rule" lang="zh">不能回头组口：本局中只要打出过某系列的任意一张牌，自己搬过该系列中自己摸到的牌，或上家已经搬过该系列的牌，就不能再以该系列组口。上家此刻正搬给你的这一张仍可以组口。若这张牌正好是和牌所缺的最后一张，仍可以宣布和，但不会出现口。</div>
+            <div class="must-rule" lang="en">Naked 4-of-a-kind in hand: when you hold a 4-of-a-kind in hand with no other cards from the same suit, the first time you are required to discard a card, you must reveal the 4-of-a-kind in the exposed area and skip that discard (since every naked 4-of-a-kind requires one extra card to reach Harmony).</div>
+            <div class="must-rule" lang="zh">暗牌净四张亮出：当手牌中持有四张相同的牌且没有同系列的其它牌时，在首次需要打牌时，必须将该四张亮到明牌区并跳过本次打牌（因为每有一组净四张，和牌时都需要多凑一张牌）。</div>
         </section>
 
         <section class="section-card">
@@ -496,6 +524,10 @@
                     <tr>
                         <td>One full snake or dragon / 一组完整的蛇或龙</td>
                         <td>1</td>
+                    </tr>
+                    <tr>
+                        <td>Two-Dragons-Tussling (two 4-of-a-kind + 1 card in same suit; 2 base + 1 rarity bonus) / 双龙抱柱（同系列两组四张加一张，2个基础大+1个同系列稀有大）</td>
+                        <td>3</td>
                     </tr>
                     <tr>
                         <td>Four of a kind of 上, 七, or 可 / 上、七、可中任意一张凑齐四张</td>
@@ -572,6 +604,11 @@
                         <td>16 / 14</td>
                         <td>8 / 6</td>
                     </tr>
+                    <tr>
+                        <td>TWO-DRAGONS-TUSSLING (双龙抱柱)<br><small>Sum of two quads + 2 Fu (Meat) / 两组四张分值之和 + 荤牌额外 2 福</small></td>
+                        <td>22 / 24 / 26</td>
+                        <td>12 / 14 / 16</td>
+                    </tr>
                 </tbody>
             </table>
         </section>
@@ -636,7 +673,8 @@
                 { en: { name: 'PENG / SAO (碰/绍)', info: 'Three of a kind.' }, zh: { name: '碰/绍 (PENG/SAO)', info: '三张相同的牌。' }, cards: ['丘', '丘', '丘'], red: false },
                 { en: { name: 'KAI-ZAO / XIA-CE (开招/下扯)', info: 'Four of a kind.' }, zh: { name: '开招/下扯 (KAI-ZAO/XIA-CE)', info: '四张相同的牌。' }, cards: ['七', '七', '七', '七'], red: false },
                 { en: { name: 'HALF-SNAKE / HALF-DRAGON (半蛇/半龙)', info: '4-of-a-kind plus 1 extra.' }, zh: { name: '半蛇/半龙', info: '四张相同牌加上同系列另一张。' }, cards: ['知', '知', '知', '知', '礼'], red: false },
-                { en: { name: 'SNAKE / DRAGON (蛇/龙)', info: 'Full suite of 6 cards.' }, zh: { name: '蛇/龙', info: '四张相同牌加上同系列另外两张。' }, cards: ['尔', '尔', '尔', '尔', '小', '生'], red: true }
+                { en: { name: 'SNAKE / DRAGON (蛇/龙)', info: 'Full suite of 6 cards.' }, zh: { name: '蛇/龙', info: '四张相同牌加上同系列另外两张。' }, cards: ['尔', '尔', '尔', '尔', '小', '生'], red: true },
+                { en: { name: 'TWO-DRAGONS-TUSSLING (双龙抱柱)', info: 'Two 4-of-a-kind from the same suit + 1 extra card of that suit from hand.' }, zh: { name: '双龙抱柱 (TWO-DRAGONS-TUSSLING)', info: '同系列的两组四张相同牌（均按四张规则成型），加上手牌中同系列的另一张牌。' }, cards: ['尔', '尔', '尔', '尔', '小', '生', '生', '生', '生'], red: true }
             ];
 
             melds.forEach(m => {
