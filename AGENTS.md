@@ -33,6 +33,10 @@ shangdaren/
 ├── manifest.json           # PWA metadata for installation & display modes
 ├── sw.js                   # Service Worker with cache-first asset strategy
 ├── package.json            # Node.js ESM configuration ("type": "module")
+├── docs/
+│   ├── game.md             # Game rules specification and labeled rules index
+│   ├── terms.md            # Bilingual glossary of actions, melds, and UI terms
+│   └── archived/           # Historical reference material
 ├── src/
 │   ├── css/
 │   │   └── style.css       # Design system, glassmorphism, responsive styles & carousel
@@ -86,52 +90,12 @@ shangdaren/
 
 ---
 
-## 3. Domain Rules & Game Mechanics Quick Reference
+## 3. Game Rules & Terminology Specifications
 
-### 3.1 Deck & Card Classification
-- **Total Cards**: 96 (24 unique characters $\times$ 4 identical copies).
-- **8 Suits (3 characters each)**:
-  - **Meat Cards (荤牌 - High Value)**:
-    - Suite 0 (Red): `['上', '大', '人']`
-    - Suite 1 (Black): `['丘', '乙', '几']`
-    - Suite 2 (Red): `['化', '三', '千']`
-  - **Veggie Cards (素牌 - Standard Value)**:
-    - Suite 3 (Black): `['七', '十', '土']`
-    - Suite 4 (Red): `['尔', '小', '生']`
-    - Suite 5 (Black): `['八', '九', '子']`
-    - Suite 6 (Red): `['佳', '作', '仁']`
-    - Suite 7 (Black): `['可', '知', '礼']`
-- **Color Rule**: Odd suits (indices 0, 2, 4, 6) are **Red** (`isRed = suiteIndex % 2 === 0`). Even suits (indices 1, 3, 5, 7) are **Black**.
-- **Card IDs**: Unique instance ID `0..95`. Type ID: `(suiteIndex * 3) + characterIndex` (`0..23`).
+All detailed game rules, scoring tables, card classifications, reward mechanics, and bilingual term dictionaries are maintained in dedicated documentation files under `docs/`:
 
-### 3.2 Melds & Point System
-| Meld | Description | Meat Points | Veggie Points | Requires Discard? |
-|---|---|---|---|---|
-| **CHI (吃)** | Complete suit: all 3 characters in the same suit | 3 | 0 | Yes |
-| **KOU (口)** | Partial suit: 2 distinct characters in the same suit | 2 | 0 | Yes |
-| **PENG (碰)** | 3-of-a-kind claimed on another player's drawn/passed card | 3 | 2 | Yes |
-| **SAO (绍)** | 3-of-a-kind formed on self-drawn card | 6 | 4 | Yes |
-| **XIA-CE (下扯)** | 4-of-a-kind claimed from another player's draw | 10 | 6 | **No** |
-| **KAI-ZAO (开招)** | 4-of-a-kind self-drawn or upgraded from SAO | 12 | 8 | **No** |
-| **HALF-DRAGON (半龙)** | 4-of-a-kind + 1 other card in the same suit (self) | 14 | 8 | Yes |
-| **HALF-SNAKE (半蛇)** | 4-of-a-kind + 1 other card in the same suit (other) | 12 | 6 | Yes |
-| **DRAGON (龙)** | 4-of-a-kind + 2 other cards in the same suit (self) | 16 | 8 | Yes |
-| **SNAKE (蛇)** | 4-of-a-kind + 2 other cards in the same suit (other) | 14 | 6 | Yes |
-
-### 3.3 Harmony (和) Victory Conditions
-A player wins immediately by declaring **HARMONY** (`Rules.canDeclareHarmony`) if:
-1. **Total Cards**: Must equal $16 + \text{exposedQuadsCount}$ (15 in hand + 1 incoming drawn/passed card, plus 1 extra card for each exposed 4-of-a-kind quad).
-2. **Full Partition**: Every single card fits into valid melds (`Rules.findPerfectPartition`).
-3. **Exact 2 KOU Rule**: Partition must contain **exactly 2 KOU** melds (Half-Dragon/Half-Snake counts as 1 KOU).
-4. **Score Threshold**: Total points $\ge 10$ Fu (福) (`SCORE_THRESHOLD = 10`). **Waived** when every card in the winning set (hand + exposed + incoming card) is a veggie card.
-
-### 3.4 Mandatory Action Hierarchy & Special Rules
-- **Must-Claim Actions**: `SAO`, `PENG`, `CHI`, `KAI-ZAO`, `XIA-CE`, `DRAGON`, `SNAKE`, `HALF-DRAGON`, `HALF-SNAKE`. If any of these are possible, the player **cannot pass** (`PASS` button is omitted).
-- **Harmony Claim**: `HARMONY` is must-claim when the completing card is self-drawn or drawn/passed by the upstream player (right). It is optional (can `PASS`/`DECLINE`) when the downstream player (left) draws it. CHI/KOU are not draw-interrupts.
-- **Optional Actions**: `KOU` is optional.
-- **No do-over (KOU)**: A player cannot form `KOU` in a suit for the rest of the game after they discard any card of that suit, or while a card of that suit remains in their `passedCards` or their upstream player's `passedCards`. The card upstream is offering right now does not count. `HARMONY` stays available when that card completes a winning hand; the `KOU` button does not. `CHI` is unaffected. Passed card reclamation (`RULE-PASSED-RECLAMATION`) removes a claimed card from `passedCards`, which reopens the suit.
-- **Bao-Zi (包子) Condition**: When forming a meld that requires a discard, if a player's hand has 0 cards left to discard, that player triggers "Bao-Zi". The triggering player loses immediately; all other players win and each receives 1 reward.
-- **Passed Card Reclamation (`RULE-PASSED-RECLAMATION`)**: If a card previously placed in a player's `passedCards` is claimed by another player to form a meld, it is pruned from the passer's `passedCards`.
+- **[Game Specification (`docs/game.md`)](docs/game.md)**: Authoritative specification of the 96-card deck, Meat/Veggie and Red/Black suits, all meld types (CHI, KOU, PENG, SAO, XIA-CE, KAI-ZAO, DRAGON, SNAKE, HALF-DRAGON, HALF-SNAKE), scoring points table, rewards table (大), and the complete indexed rules catalog (`[RULE-...]`) used by the rules engine and test suite.
+- **[Bilingual Glossary (`docs/terms.md`)](docs/terms.md)**: Standardized English and Chinese terms for actions, melds, table zones/piles, game states, and UI controls distilled from `src/js/translations.js`.
 
 ---
 
@@ -203,7 +167,7 @@ All delays and animation durations are centralized in `src/js/constants.js`:
 - **Never introduce arbitrary `setTimeout(..., 1000)` literals** in `game.js` or `main.js`. Reference constants from `constants.js`.
 
 ### 5.4 Internationalization (i18n)
-- Runtime strings in JavaScript use `t(key)` mapped via `TRANSLATIONS[currentLang]` in `src/js/translations.js`.
+- Runtime strings in JavaScript use `t(key)` mapped via `TRANSLATIONS[currentLang]` in `src/js/translations.js`. See [docs/terms.md](docs/terms.md) for the complete bilingual terminology glossary.
 - Locale preference is persisted in `localStorage.getItem('language')`.
 - Static pages (`about.html`, `how-to.html`, `versions.html`) toggle bilingual blocks using CSS classes (`body.lang-zh` / `body.lang-en`).
 
