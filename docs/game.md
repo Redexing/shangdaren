@@ -95,7 +95,7 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 - **`[RULE-TURN-DRAW]`**: At the start of a turn, the active player draws 1 card from the Deck to the center area.
 - **`[RULE-PRIMARY-PASS]`**: If the drawing player declines or passes a freshly drawn card, the card enters their PASSED pile and is offered to the immediate downstream player (counter-clockwise).
 - **`[RULE-SECONDARY-PASS]`**: If the downstream player declines an offered passed card, the card remains in the passer's PASSED pile, and the downstream player begins their turn by drawing from the Deck.
-- **`[RULE-RULE-6-RECLAMATION]`**: If a card in any player's PASSED pile is claimed by another player to form a meld, it is removed from that PASSED pile.
+- **`[RULE-PASSED-RECLAMATION]`**: If a card in any player's PASSED pile is claimed by another player to form a meld, it is removed from that PASSED pile.
 
 ### Action Priority & Interrupts
 - **`[RULE-INTERRUPT-PRIORITY]`**: When a card is revealed, actions resolve by priority:
@@ -115,8 +115,9 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 - **`[RULE-DISCARD-EXEMPT-QUADS]`**: Forming XIA-CE or KAI-ZAO does NOT require a discard.
 - **`[RULE-DISCARD-RESTRICTION-TRIP]`**: A card cannot be discarded if it is part of a 3-of-a-kind or 4-of-a-kind in HAND.
 - **`[RULE-DISCARD-RESTRICTION-CHI]`**: A card cannot be discarded if it is essential to maintaining an existing complete CHI suite in HAND.
-- **`[RULE-DISCARD-RESTRICTION-MELD]`**: A player cannot discard a card that is part of the meld currently being formed.
-- **`[RULE-BAO-ZI]`**: When a player completes a meld that requires a discard but has 0 cards left in HAND, that player triggers BAO-ZI. The triggering player loses immediately, and the other two players win.
+- **`[RULE-DISCARD-RESTRICTION-MELD]`**: When claiming an active card to form a meld that requires a follow-up discard, the discard must come from the player's *remaining* in-hand cards. A player cannot discard any card that is committed to forming that new meld.
+  - *Example*: A player claims CHI on an incoming 人 using 上 and 大 from their HAND. The player must discard a third, unrelated card from HAND; they cannot discard that 上 or 大.
+- **`[RULE-BAO-ZI]`**: When a player completes a meld that requires a discard but has 0 cards left in HAND, that player triggers BAO-ZI. The triggering player loses immediately, and the other two players win, each receiving 1 reward (大).
 
 ### Harmony (Winning) Conditions
 - **`[RULE-HARMONY-CARD-COUNT]`**: The total card count must equal $16 + \text{exposedQuadsCount}$ (15 in hand + 1 completing card, plus 1 for each exposed 4-of-a-kind quad).
@@ -124,7 +125,7 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 - **`[RULE-HARMONY-EXACT-2-KOU]`**: The winning partition must contain exactly 2 KOU melds (HALF-DRAGON and HALF-SNAKE count as 1 KOU).
 - **`[RULE-HARMONY-SCORE-THRESHOLD]`**: Total score must be $\ge 10$ Fu. This threshold is waived if every card in the winning set is a Veggie card.
 - **`[RULE-HARMONY-MIN-REWARDS]`**: The winning hand must score at least 1 Reward (大). A hand meeting all other criteria with 0 rewards cannot win and must continue playing. If a subsequent mandatory meld leaves no legal discard, BAO-ZI is triggered.
-- **`[RULE-REWARDS-WINNER-ONLY]`**: Rewards are credited only to the player declaring HARMONY. Non-winners gain 0 rewards.
+- **`[RULE-REWARDS-WINNER-ONLY]`**: In a HARMONY win, rewards are credited only to the player declaring HARMONY. In a BAO-ZI game, each of the two winning players receives 1 reward (大). Non-winners receive 0 rewards.
 
 ### Game End
 - **`[RULE-DECK-EXHAUSTION]`**: If the Deck is completely depleted and no player has declared HARMONY, the game ends in a draw (tie).

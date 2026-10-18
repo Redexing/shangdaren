@@ -129,9 +129,9 @@ A player wins immediately by declaring **HARMONY** (`Rules.canDeclareHarmony`) i
 - **Must-Claim Actions**: `SAO`, `PENG`, `CHI`, `KAI-ZAO`, `XIA-CE`, `DRAGON`, `SNAKE`, `HALF-DRAGON`, `HALF-SNAKE`. If any of these are possible, the player **cannot pass** (`PASS` button is omitted).
 - **Harmony Claim**: `HARMONY` is must-claim when the completing card is self-drawn or drawn/passed by the upstream player (right). It is optional (can `PASS`/`DECLINE`) when the downstream player (left) draws it. CHI/KOU are not draw-interrupts.
 - **Optional Actions**: `KOU` is optional.
-- **No do-over (KOU)**: A player cannot form `KOU` in a suit for the rest of the game after they discard any card of that suit, or while a card of that suit remains in their `passedCards` or their upstream player's `passedCards`. The card upstream is offering right now does not count. `HARMONY` stays available when that card completes a winning hand; the `KOU` button does not. `CHI` is unaffected. Rule 6 removes a claimed card from `passedCards`, which reopens the suit.
-- **Bao-Zi (包子) Condition**: When forming a meld that requires a discard, if a player's hand has 0 cards left to discard, that player triggers "Bao-Zi". The triggering player loses immediately; all other players win.
-- **Rule 6 (Passed Card Reclamation)**: If a card previously placed in a player's `passedCards` is claimed by another player to form a meld, it is pruned from the passer's `passedCards`.
+- **No do-over (KOU)**: A player cannot form `KOU` in a suit for the rest of the game after they discard any card of that suit, or while a card of that suit remains in their `passedCards` or their upstream player's `passedCards`. The card upstream is offering right now does not count. `HARMONY` stays available when that card completes a winning hand; the `KOU` button does not. `CHI` is unaffected. Passed card reclamation (`RULE-PASSED-RECLAMATION`) removes a claimed card from `passedCards`, which reopens the suit.
+- **Bao-Zi (包子) Condition**: When forming a meld that requires a discard, if a player's hand has 0 cards left to discard, that player triggers "Bao-Zi". The triggering player loses immediately; all other players win and each receives 1 reward.
+- **Passed Card Reclamation (`RULE-PASSED-RECLAMATION`)**: If a card previously placed in a player's `passedCards` is claimed by another player to form a meld, it is pruned from the passer's `passedCards`.
 
 ---
 
