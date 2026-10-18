@@ -511,7 +511,7 @@ function updateControls() {
         const myActions = game.pendingActions ? game.pendingActions.get(0) : [];
         if (myActions && myActions.length > 0) {
             const types = new Set(myActions.map(a => a.type));
-            const order = ['HARMONY', 'SNAKE', 'DRAGON', 'HALF-SNAKE', 'HALF-DRAGON', 'KAI-ZAO', 'XIA-CE', 'SAO', 'PENG', 'CHI', 'KOU', 'PASS'];
+            const order = ['HARMONY', 'TWO-DRAGONS-TUSSLING', 'SNAKE', 'DRAGON', 'HALF-SNAKE', 'HALF-DRAGON', 'KAI-ZAO', 'XIA-CE', 'SAO', 'PENG', 'CHI', 'KOU', 'PASS'];
             order.forEach(tKey => {
                 if (types.has(tKey)) {
                     const btn = document.createElement('button');
@@ -584,11 +584,12 @@ function onActionClick(type) {
         // In this game, most melds still require a discard unless it's a quad
     }
 
-    // Quads do not discard. Any other meld with no legal discard is baozi.
+    // Quads and hands with a naked quad do not discard. Any other meld with no legal discard is baozi.
+    const prospectiveHand = game.handAfterMeldClaim(game.players[0].hand, action);
     if (['KAI-ZAO', 'XIA-CE'].includes(type)) {
         game.confirmHumanMeld(action, -1);
         selectedAction = null;
-    } else if (Rules.firstLegalDiscardIndex(game.handAfterMeldClaim(game.players[0].hand, action)) === -1) {
+    } else if (Rules.findNakedQuadInHand(prospectiveHand) || Rules.firstLegalDiscardIndex(prospectiveHand) === -1) {
         game.confirmHumanMeld(action, -1);
         selectedAction = null;
     } else {

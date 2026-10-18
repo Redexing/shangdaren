@@ -17,13 +17,20 @@ game.on('state_change', () => {
 
 // Run Init
 game.init();
+// Cancel async turn timer from game.init() so test runner exits cleanly without stray logs
+game.flowToken++;
 
-// Check if players have hands
-console.log('Player 0 hand size:', game.players[0].hand.length);
-if (game.players[0].hand.length !== 15) {
-    console.error('ERROR: Incorrect hand size');
+// [RULE-DECK-SIZE], [RULE-PLAYER-COUNT], [RULE-INITIAL-DEAL]
+if (game.players.length !== 3) {
+    console.error('ERROR: Incorrect player count');
+    process.exit(1);
+}
+if (game.players.every(p => p.hand.length === 15) && game.deck.remaining() === 51) {
+    console.log('Player 0 hand size:', game.players[0].hand.length);
+    console.log('Hand size and deck deal check passed.');
 } else {
-    console.log('Hand size check passed.');
+    console.error('ERROR: Incorrect hand size or remaining deck size');
+    process.exit(1);
 }
 
 // Simulate a Turn Sequence if possible
@@ -79,6 +86,18 @@ if (Rules.canDiscard(hand4, 0) === false) {
     console.log('canDiscard (triple) passed.');
 } else {
     console.error('canDiscard (triple) FAILED.');
+    process.exit(1);
+}
+
+// [RULE-NAKED-QUAD-REVEAL]: findNakedQuadInHand detects naked 4-of-a-kind vs non-naked 4-of-a-kind
+const quadCards = [new Card(110, 3, 0), new Card(111, 3, 0), new Card(112, 3, 0), new Card(113, 3, 0)];
+const nakedQuadRes = Rules.findNakedQuadInHand([...quadCards, s0c0]);
+const nonNakedQuadRes = Rules.findNakedQuadInHand([...quadCards, new Card(114, 3, 1)]);
+if (nakedQuadRes && nakedQuadRes.length === 4 && nonNakedQuadRes === null) {
+    console.log('findNakedQuadInHand check passed.');
+} else {
+    console.error('findNakedQuadInHand check FAILED.');
+    process.exit(1);
 }
 
 runGetActionsTests();

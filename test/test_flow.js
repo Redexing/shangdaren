@@ -456,6 +456,202 @@ export function runFlowTests() {
         );
     });
 
+    // [RULE-EXPOSED-PRIORITY]: Upgrading exposed KOU to CHI takes priority over in-hand KOU
+    withFakeTimers(() => {
+        const game = new Game();
+        game.isWatchMode = true;
+        game.players = [
+            new Player('Bot 1', false),
+            new Player('Bot 2', false),
+            new Player('Bot 3', false)
+        ];
+        const expKou = { type: 'KOU', cards: [card(701, 4, 0), card(702, 4, 1)] }; // 尔, 小 in exposed
+        const handEr = card(703, 4, 0);   // 尔 in hand
+        const handXiao = card(704, 4, 1); // 小 in hand
+        const spare = card(705, 3, 0);    // 七 (discardable)
+        const sheng = card(706, 4, 2);    // incoming 生
+
+        game.players[0].exposed = [expKou];
+        game.players[0].hand = [spare, handEr, handXiao];
+        game.players[1].hand = [card(707, 5, 0)];
+        game.players[2].hand = [card(708, 6, 0)];
+
+        game.currentPlayerIndex = 0;
+        game.activeCard = sheng;
+        game.activeCardSource = 'DECK';
+        const actions = game.calculateActions(sheng);
+        game.resolveBotActions(sheng, actions);
+
+        assert(
+            '[RULE-EXPOSED-PRIORITY] Incoming 生 upgrades exposed 尔小 KOU to CHI and leaves in-hand 尔小 intact',
+            game.players[0].exposed.length === 1
+                && game.players[0].exposed[0].type === 'CHI'
+                && game.players[0].exposed[0].cards.length === 3
+                && game.players[0].hand.length === 2
+                && game.players[0].hand.some(c => c.id === handEr.id)
+                && game.players[0].hand.some(c => c.id === handXiao.id)
+                && game.players[0].discards.length === 1 && game.players[0].discards[0].id === spare.id,
+            `exposed=${game.players[0].exposed.map(m => m.type).join(',')} hand=${game.players[0].hand.map(c => c.character).join('')}`
+        );
+    });
+
+    // [RULE-MELD-UPGRADE-SAO] & [RULE-MELD-UPGRADE-TWO-DRAGONS]: Exposed SAO upgrades and merges
+    withFakeTimers(() => {
+        const game = new Game();
+        game.players = [
+            new Player('Bot 1', false),
+            new Player('Bot 2', false),
+            new Player('Bot 3', false)
+        ];
+
+        // 1. Exposed SAO (尔x3) + 小 in hand + incoming 4th 尔 -> HALF-DRAGON (5 cards in exposed) + discard
+        const saoMeld = {
+            type: 'SAO',
+            cards: [card(710, 4, 0), card(711, 4, 0), card(712, 4, 0)]
+        };
+        const xiaoInHand = card(713, 4, 1);
+        const spare1 = card(714, 3, 0);
+        const er4 = card(715, 4, 0);
+        game.players[0].exposed = [saoMeld];
+        game.players[0].hand = [xiaoInHand, spare1];
+        const p0Moves = Rules.getActions(game.players[0].hand, er4, true, game.players[0].exposed);
+        game.executeBotMeld(0, er4, p0Moves[0]);
+
+        assert(
+            '[RULE-MELD-UPGRADE-SAO] Exposed SAO + 1 same-suit card in hand upgrades into 5-card HALF-DRAGON',
+            game.players[0].exposed.length === 1
+                && game.players[0].exposed[0].type === 'HALF-DRAGON'
+                && game.players[0].exposed[0].cards.length === 5
+                && game.players[0].hand.length === 0
+                && game.players[0].discards.length === 1 && game.players[0].discards[0].id === spare1.id,
+            `type=${game.players[0].exposed[0]?.type} cards=${game.players[0].exposed[0]?.cards.length}`
+        );
+
+        // 2. Exposed HALF-DRAGON (尔尔尔尔小) + exposed SAO (生x3) + incoming 4th 生 -> merges into 9-card TWO-DRAGONS-TUSSLING
+        const shengSao = {
+            type: 'SAO',
+            cards: [card(716, 4, 2), card(717, 4, 2), card(718, 4, 2)]
+        };
+        const spare2 = card(719, 3, 1);
+        const sheng4 = card(720, 4, 2);
+        game.players[0].exposed.push(shengSao);
+        game.players[0].hand = [spare2];
+        const tussleMoves = Rules.getActions(game.players[0].hand, sheng4, true, game.players[0].exposed);
+        game.executeBotMeld(0, sheng4, tussleMoves[0]);
+
+        assert(
+            '[RULE-MELD-UPGRADE-TWO-DRAGONS] Exposed HALF-DRAGON + exposed SAO merges into 9-card TWO-DRAGONS-TUSSLING',
+            game.players[0].exposed.length === 1
+                && game.players[0].exposed[0].type === 'TWO-DRAGONS-TUSSLING'
+                && game.players[0].exposed[0].cards.length === 9
+                && game.players[0].exposed[0].cards.map(c => c.character).join('') === '尔尔尔尔小生生生生'
+                && game.players[0].hand.length === 0
+                && game.players[0].discards.length === 2,
+            `exposedCount=${game.players[0].exposed.length} chars=${game.players[0].exposed[0]?.cards.map(c => c.character).join('')}`
+        );
+    });
+
+    // [RULE-NAKED-QUAD-REVEAL]: Naked 4-of-a-kind in hand is revealed in EXPOSED and skips first discard
+    withFakeTimers(({ drain }) => {
+        const game = new Game();
+        game.players = [
+            new Player('You', true),
+            new Player('Bot Left', false),
+            new Player('Bot Right', false)
+        ];
+
+        // 1. Bot holds naked 4-of-a-kind (七x4, no 十 or 土) + 上, 大. Draws 人 -> forms CHI, reveals 七x4 as KAI-ZAO, skips discard!
+        const nakedQi = [card(730, 3, 0), card(731, 3, 0), card(732, 3, 0), card(733, 3, 0)];
+        const bShang = card(734, 0, 0);
+        const bDa = card(735, 0, 1);
+        const bRen = card(736, 0, 2);
+        game.players[1].hand = [...nakedQi, bShang, bDa];
+        game.executeBotMeld(1, bRen, { type: 'CHI', cards: [bShang, bDa] });
+
+        assert(
+            '[RULE-NAKED-QUAD-REVEAL] Bot reveals naked 4-of-a-kind in EXPOSED and skips discard (avoiding false BAO-ZI)',
+            game.players[1].exposed.length === 2
+                && game.players[1].exposed.some(m => m.type === 'CHI' && m.cards.length === 3)
+                && game.players[1].exposed.some(m => m.type === 'KAI-ZAO' && m.cards.length === 4)
+                && game.players[1].hand.length === 0
+                && game.players[1].discards.length === 0
+                && game.players[1].totalGames === 0,
+            `exposed=${game.players[1].exposed.map(m => m.type).join(',')} hand=${game.players[1].hand.length} discards=${game.players[1].discards.length}`
+        );
+
+        // 2. Human holds naked 4-of-a-kind (可x4) + 化, 三 + spare 八. Claims CHI on 千 -> reveals 可x4, skips discard, keeps 八!
+        const nakedKe = [card(740, 7, 0), card(741, 7, 0), card(742, 7, 0), card(743, 7, 0)];
+        const hHua = card(744, 2, 0);
+        const hSan = card(745, 2, 1);
+        const hSpare = card(746, 5, 0);
+        const hQian = card(747, 2, 2);
+        game.players[0].hand = [...nakedKe, hHua, hSan, hSpare];
+        game.activeCard = hQian;
+        game.activeCardSource = 'DECK';
+        game.currentPlayerIndex = 0;
+        game.confirmHumanMeld({ type: 'CHI', cards: [hHua, hSan] }, -1);
+        drain(20);
+
+        assert(
+            '[RULE-NAKED-QUAD-REVEAL] Human reveals naked 4-of-a-kind in EXPOSED, skips discard, and keeps spare card in hand',
+            game.players[0].exposed.length === 2
+                && game.players[0].exposed.some(m => m.type === 'CHI')
+                && game.players[0].exposed.some(m => m.type === 'KAI-ZAO' && m.cards.length === 4)
+                && game.players[0].discards.length === 0
+                && game.players[0].hand.length === 1 && game.players[0].hand[0].id === hSpare.id,
+            `exposed=${game.players[0].exposed.map(m => m.type).join(',')} hand=${game.players[0].hand.length} discards=${game.players[0].discards.length}`
+        );
+    });
+
+    // [RULE-PRIMARY-PASS], [RULE-SECONDARY-PASS], [RULE-PASSED-RECLAMATION]
+    withFakeTimers(({ drain }) => {
+        const game = new Game();
+        game.isWatchMode = true;
+        game.players = [
+            new Player('Bot 1', false),
+            new Player('Bot 2', false),
+            new Player('Bot 3', false)
+        ];
+        const passedCard = card(750, 7, 0); // 可
+        const deckNext = card(751, 5, 0);   // 八
+        game.deck.cards = [deckNext];
+        game.players[0].hand = [card(752, 0, 0)];
+        game.players[1].hand = [card(753, 1, 0)];
+        game.players[2].hand = [card(754, 2, 0)];
+
+        // Primary Pass: Bot 1 (P0) passes deck-drawn 可 -> enters P0's passedCards and is offered to P1
+        game.currentPlayerIndex = 0;
+        game.activeCard = passedCard;
+        game.activeCardSource = 'DECK';
+        game.handlePass(0, passedCard);
+
+        assert(
+            '[RULE-PRIMARY-PASS] Passed deck card enters drawer passedCards pile',
+            game.players[0].passedCards.length === 1 && game.players[0].passedCards[0].id === passedCard.id
+                && game.activeCardSource === 0,
+            `passed=${game.players[0].passedCards.length} source=${game.activeCardSource}`
+        );
+
+        // Drain primary pass + secondary pass + next turn draw
+        drain(20);
+        assert(
+            '[RULE-SECONDARY-PASS] Downstream decline leaves card in passer passedCards and draws next card from deck',
+            game.players[0].passedCards.length === 1 && game.players[0].passedCards[0].id === passedCard.id
+                && game.deck.isEmpty(),
+            `passed=${game.players[0].passedCards.length} deck=${game.deck.cards.length}`
+        );
+
+        // Reclamation on exposed KOU upgrade: P1 upgrades exposed KOU (知礼) with P0's passed 可 -> removes 可 from P0's passedCards
+        game.players[1].exposed = [{ type: 'KOU', cards: [card(755, 7, 1), card(756, 7, 2)] }];
+        game.activeCardSource = 0;
+        game.executeBotMeld(1, passedCard, { type: 'CHI', cards: [], meldRef: game.players[1].exposed[0] });
+        assert(
+            '[RULE-PASSED-RECLAMATION] Upgrading an exposed KOU with a passed card removes it from passer passedCards',
+            game.players[0].passedCards.length === 0 && game.players[1].exposed[0].type === 'CHI',
+            `p0Passed=${game.players[0].passedCards.length} p1Meld=${game.players[1].exposed[0].type}`
+        );
+    });
+
     if (failed > 0) {
         console.error(`${failed} flow test(s) failed.`);
         process.exit(1);
