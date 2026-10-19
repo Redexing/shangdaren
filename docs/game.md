@@ -63,7 +63,7 @@ Community zones:
 | **SNAKE (蛇)** | 4-of-a-kind + remaining 2 cards of suit (claimed from other) | 6 | 14 Fu | 6 Fu | Yes |
 | **TWO-DRAGONS-TUSSLING (双龙抱柱)** | Two 4-of-a-kind of same suit + 1 extra card of suit from HAND | 9 | 22 / 24 / 26 Fu (sum of two quads + 2 Fu) | 12 / 14 / 16 Fu (sum of two quads + 0 Fu) | Yes |
 
-*Note: HALF-DRAGON and HALF-SNAKE count as 1 KOU for the Harmony partition requirement.*
+*Note: HALF-DRAGON and HALF-SNAKE count as 1 KOU for the Harmony partition requirement and toward the exposed limit of 2 KOU-equivalents (`[RULE-KOU-MAX-EXPOSED]`).*
 
 ### 4.2 Rewards (大) Table
 
@@ -109,7 +109,7 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 - **`[RULE-OPTIONAL-KOU]`**: Claiming a card to form a KOU is always optional.
 
 ### KOU Constraints
-- **`[RULE-KOU-MAX-EXPOSED]`**: A player may have at most 2 exposed KOU melds on the table at any time.
+- **`[RULE-KOU-MAX-EXPOSED]`**: A player may have at most 2 exposed KOU-equivalent melds. KOU, HALF-DRAGON, and HALF-SNAKE each count as one. A new KOU is not offered once two are already exposed. Completing an exposed KOU into CHI remains allowed.
 - **`[RULE-KOU-NO-DO-OVER]`**: A player cannot form a KOU in a suit if they have previously discarded any card of that suit, passed a drawn card of that suit, or their upstream player has previously passed a card of that suit. The card currently being offered by the upstream player remains eligible for KOU. This restriction does not block CHI or HARMONY.
 
 ### Meld Formation
@@ -119,7 +119,7 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 - **`[RULE-MELD-UPGRADE-KOU]`**: An exposed KOU can grow into a CHI upon claiming the missing third character of the suit.
 - **`[RULE-MELD-UPGRADE-SAO]`**: A 3-of-a-kind in HAND or an exposed SAO (self-drawn 3-of-a-kind in EXPOSED) can grow when its 4th identical card arrives into:
   - **KAI-ZAO** or **XIA-CE** (if no same-suit cards are attached);
-  - **HALF-DRAGON** or **HALF-SNAKE** if the player already holds 1 other card of the same suit in HAND at that moment (this extra card cannot be added later from a future draw or another player);
+  - **HALF-DRAGON** or **HALF-SNAKE** if the player already holds 1 other card of the same suit in HAND at that moment (this extra card cannot be added later from a future draw or another player). The player must take this longer meld; a plain KAI-ZAO or XIA-CE is not allowed. If that HALF-DRAGON or HALF-SNAKE would be a third exposed KOU-equivalent, the player is BAO-ZI (`[RULE-BAO-ZI]`);
   - **DRAGON** or **SNAKE** if the player holds the other 2 cards of the same suit in HAND or in an exposed KOU.
 - **`[RULE-MELD-UPGRADE-TWO-DRAGONS]`**: An exposed HALF-DRAGON or HALF-SNAKE can grow into a **TWO-DRAGONS-TUSSLING (双龙抱柱)** meld when a second 4-of-a-kind of the same suit is formed (under standard quad rules) alongside the 1 extra card of that suit from HAND. Its Fu score equals the sum of how the two 4-of-a-kind were formed (KAI-ZAO or XIA-CE), plus 2 Fu for the extra card if it is a Meat suit (max 26 Fu for two self-drawn Meat quads: $12 + 12 + 2$). It earns 3 rewards (大) by itself (2 base rewards for counting as two dragons/snakes, plus 1 bonus reward for being in the same suit).
 
@@ -131,7 +131,7 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 - **`[RULE-DISCARD-RESTRICTION-CHI]`**: A card cannot be discarded if it is essential to maintaining an existing complete CHI suite in HAND.
 - **`[RULE-DISCARD-RESTRICTION-MELD]`**: When claiming an active card to form a meld that requires a follow-up discard, the discard must come from the player's *remaining* in-hand cards. A player cannot discard any card that is committed to forming that new meld.
   - *Example*: A player claims CHI on an incoming 人 using 上 and 大 from their HAND. The player must discard a third, unrelated card from HAND; they cannot discard that 上 or 大.
-- **`[RULE-BAO-ZI]`**: When a player completes a meld that requires a discard but has 0 cards left in HAND, that player triggers BAO-ZI. The triggering player loses immediately, and the other two players win, each receiving 1 reward (大).
+- **`[RULE-BAO-ZI]`**: When a player completes a meld that requires a discard but has 0 cards left in HAND, that player triggers BAO-ZI. The same loss occurs when a mandatory meld creates a third exposed KOU-equivalent (KOU, HALF-DRAGON, or HALF-SNAKE): the meld is formed and that player loses immediately, even if HAND still has a card that could be discarded. The triggering player loses, and the other two players win, each receiving 1 reward (大).
 
 ### Harmony (Winning) Conditions
 - **`[RULE-HARMONY-CARD-COUNT]`**: The total card count must equal $16 + \text{exposedQuadsCount}$ (15 in hand + 1 completing card, plus 1 for each exposed 4-of-a-kind quad).

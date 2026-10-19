@@ -315,6 +315,17 @@ export class Rules {
         return kous;
     }
 
+    // KOU, HALF-DRAGON, and HALF-SNAKE each occupy one exposed KOU slot.
+    static exposedKouCount(exposed = []) {
+        return this._countKous(exposed);
+    }
+
+    // A new KOU, HALF-DRAGON, or HALF-SNAKE would be a third exposed KOU.
+    static wouldExceedExposedKouLimit(exposed, actionType) {
+        if (actionType !== 'KOU' && actionType !== 'HALF-DRAGON' && actionType !== 'HALF-SNAKE') return false;
+        return this.exposedKouCount(exposed) >= 2;
+    }
+
     static _partitionWithExposed(exposedMelds, handPool) {
         const exposedKous = this._countKous(exposedMelds);
         if (exposedKous > 2) return null;
@@ -777,8 +788,9 @@ export class Rules {
             }
         }
 
-        // 5b. KOU (2 different cards of same suite) - Optional
-        if (kouInExposed.length < 2 && !suiteBroken && moves.length === 0) {
+        // 5b. KOU (2 different cards of same suite) - Optional.
+        // HALF-DRAGON and HALF-SNAKE count toward the same limit of 2.
+        if (this.exposedKouCount(exposed) < 2 && !suiteBroken && moves.length === 0) {
             const others = [0, 1, 2].filter(i => i !== card.characterIndex);
             const sCounts = [0, 0, 0];
             allSuiteCardsInHand.forEach(c => sCounts[c.characterIndex]++);

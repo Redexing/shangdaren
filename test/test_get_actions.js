@@ -503,6 +503,58 @@ export function runGetActionsTests() {
             expected: ['KOU', 'PASS']
         },
         {
+            name: "[RULE-MELD-UPGRADE-SAO] Self-drawn 九 with exposed SAO and a single 子 becomes HALF-DRAGON",
+            hand: [new Card(900, 5, 2)], // 子
+            card: new Card(901, 5, 1), // 九
+            isSelf: true,
+            exposed: [{
+                type: 'SAO',
+                cards: [
+                    new Card(902, 5, 1),
+                    new Card(903, 5, 1),
+                    new Card(904, 5, 1)
+                ]
+            }],
+            expected: ['HALF-DRAGON'],
+            expectMeldRefType: 'SAO',
+            expectedActionCardsCount: 1
+        },
+        {
+            name: "[RULE-KOU-MAX-EXPOSED] HALF-DRAGON stays mandatory when 2 KOU are already exposed",
+            hand: [new Card(910, 5, 2), new Card(911, 3, 0)], // 子 + spare 七
+            card: new Card(912, 5, 1), // 九
+            isSelf: true,
+            exposed: [
+                {
+                    type: 'SAO',
+                    cards: [new Card(913, 5, 1), new Card(914, 5, 1), new Card(915, 5, 1)]
+                },
+                { type: 'KOU', cards: [new Card(916, 0, 0), new Card(917, 0, 1)] },
+                { type: 'KOU', cards: [new Card(918, 1, 0), new Card(919, 1, 1)] }
+            ],
+            expected: ['HALF-DRAGON'],
+            expectMeldRefType: 'SAO',
+            expectedActionCardsCount: 1
+        },
+        {
+            name: "[RULE-KOU-MAX-EXPOSED] HALF-DRAGON counts toward the 2 KOU limit",
+            hand: [new Card(920, 6, 2)], // 仁
+            card: new Card(921, 6, 1), // 作
+            isSelf: true,
+            exposed: [
+                { type: 'KOU', cards: [new Card(922, 0, 0), new Card(923, 0, 1)] },
+                {
+                    type: 'HALF-DRAGON',
+                    cards: [
+                        new Card(924, 5, 1), new Card(925, 5, 1),
+                        new Card(926, 5, 1), new Card(927, 5, 1),
+                        new Card(928, 5, 2)
+                    ]
+                }
+            ],
+            expected: ['PASS']
+        },
+        {
             name: "[RULE-KOU-MAX-EXPOSED] 3rd KOU is blocked when 2 KOUs are already exposed",
             hand: [new Card(74, suite7Idx, 2)], // 仁
             card: new Card(75, suite7Idx, 1), // 作
