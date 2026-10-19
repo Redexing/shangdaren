@@ -1,6 +1,7 @@
 import { Game } from '../src/js/game.js';
 import { Player } from '../src/js/player.js';
 import { Card } from '../src/js/card.js';
+import { Rules } from '../src/js/rules.js';
 import { buildScreenshotHarmonyState } from './test_harmony.js';
 
 function createBareGame() {
@@ -132,6 +133,88 @@ export function runHarmonyActionTests() {
             'Downstream meat draw without Harmony does not offer Harmony',
             !types.includes('HARMONY'),
             `Got: ${types.join(', ')}`
+        );
+    }
+
+    {
+        // Passed tile to receiver (isSelf=true, isSelfDraw=false) upgrades exposed Veggie SAO + 1 same-suit hand card
+        // into HALF-DRAGON (8 Fu) + Meat KOU (2 Fu) = 10 Fu (exact-10 reward).
+        // Must offer mandatory HARMONY rather than scoring as HALF-SNAKE (6 Fu) and missing the 10-Fu gate.
+        const game = createBareGame();
+        let cid = 900;
+        const c = (s, ch) => new Card(cid++, s, ch);
+        game.players[0].exposed = [
+            { type: 'SAO', cards: [c(4, 0), c(4, 0), c(4, 0)] } // 尔x3
+        ];
+        game.players[0].hand = [
+            c(4, 1),          // 小 (combines with SAO + 4th 尔 -> HALF-DRAGON = 8 Fu, 1st KOU)
+            c(0, 0), c(0, 1), // 上, 大 (Meat KOU = 2 Fu, 2nd KOU)
+            c(3, 0), c(3, 1), c(3, 2), // Veggie CHI (0 Fu)
+            c(5, 0), c(5, 1), c(5, 2), // Veggie CHI (0 Fu)
+            c(6, 0), c(6, 1), c(6, 2)  // Veggie CHI (0 Fu)
+        ];
+        const fourthEr = c(4, 0);
+        game.currentPlayerIndex = 0; // Receiver after upstream pass
+        game.activeCard = fourthEr;
+        game.activeCardSource = 2;   // Passed from upstream (not DECK)
+
+        const types = actionTypesFor(game, fourthEr, 0);
+        assert(
+            'Passed tile upgrading SAO to HALF-DRAGON (10 Fu) offers mandatory HARMONY',
+            types.includes('HARMONY') && types.includes('HALF-DRAGON') && !types.includes('PASS'),
+            `Got: ${types.join(', ')}`
+        );
+
+        // Interrupter (isSelf=false) with the same cards gets HALF-SNAKE (6 Fu + 2 Fu = 8 Fu < 10 Fu) -> no HARMONY
+        const interrupterMoves = Rules.getActions(
+            game.players[0].hand,
+            fourthEr,
+            false,
+            game.players[0].exposed
+        ).map(m => m.type);
+        assert(
+            'Interrupter (isSelf=false) scores upgrade as HALF-SNAKE (8 Fu) and does not offer HARMONY',
+            interrupterMoves.includes('HALF-SNAKE') && !interrupterMoves.includes('HARMONY'),
+            `Got: ${interrupterMoves.join(', ')}`
+        );
+    }
+
+    {
+        // Passed tile to receiver (isSelf=true, isSelfDraw=false) upgrades exposed Veggie HALF-DRAGON
+        // into DRAGON (8 Fu) + Meat KOU (2 Fu) = 10 Fu (meets 10-Fu gate, dragon-snake + exact-10).
+        const game = createBareGame();
+        let cid = 950;
+        const c = (s, ch) => new Card(cid++, s, ch);
+        game.players[0].exposed = [
+            { type: 'HALF-DRAGON', cards: [c(4, 0), c(4, 0), c(4, 0), c(4, 0), c(4, 1)] } // 尔x4 + 小
+        ];
+        game.players[0].hand = [
+            c(0, 0), c(0, 1),          // Meat KOU (2 Fu)
+            c(3, 0), c(3, 1),          // Veggie KOU (0 Fu)
+            c(5, 0), c(5, 1), c(5, 2), // Veggie CHI (0 Fu)
+            c(6, 0), c(6, 1), c(6, 2)  // Veggie CHI (0 Fu)
+        ];
+        const sheng = c(4, 2); // 生 completes DRAGON (8 Fu)
+        game.currentPlayerIndex = 0;
+        game.activeCard = sheng;
+        game.activeCardSource = 2; // Passed from upstream
+
+        const types = actionTypesFor(game, sheng, 0);
+        assert(
+            'Passed tile upgrading HALF-DRAGON to DRAGON (10 Fu) offers mandatory HARMONY',
+            types.includes('HARMONY') && types.includes('DRAGON') && !types.includes('PASS'),
+            `Got: ${types.join(', ')}`
+        );
+
+        const logs = [];
+        game.log = (msg) => logs.push(msg);
+        game.handleHarmony(0, sheng);
+        game.flowToken++; // Cancel celebration timer
+        assert(
+            'handleHarmony on passed tile scores DRAGON upgrade (exact-10, dragon-snake) without self-draw',
+            game.players[0].exposed.some(m => m.type === 'DRAGON')
+                && logs.some(l => l.includes('Rewards: 2 [exact-10, dragon-snake]')),
+            `exposed=${game.players[0].exposed.map(m => m.type).join(',')} logs=${logs.join(' | ')}`
         );
     }
 

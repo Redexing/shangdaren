@@ -153,7 +153,7 @@ export class Game {
             currentP.hand, card, true, currentP.exposed, currentP.discards,
             this.kouHistoryOptions(this.currentPlayerIndex, drawerSelfDraw)
         );
-        this.ensureHarmonyAction(currentActions, currentP, card, drawerSelfDraw);
+        this.ensureHarmonyAction(currentActions, currentP, card, drawerSelfDraw, true);
         this.applyPassPolicy(currentActions, this.currentPlayerIndex);
         allActions.set(this.currentPlayerIndex, currentActions);
 
@@ -165,7 +165,7 @@ export class Game {
                 p.hand, card, false, p.exposed, p.discards,
                 this.kouHistoryOptions(idx, false)
             );
-            this.ensureHarmonyAction(moves, p, card, false);
+            this.ensureHarmonyAction(moves, p, card, false, false);
             moves = moves.filter(m => interruptTypes.has(m.type));
             this.applyPassPolicy(moves, idx);
             if (moves.length > 0) {
@@ -183,6 +183,7 @@ export class Game {
         const player = this.players[playerIndex];
         const upstreamPlayer = this.players[upstream];
         return {
+            isSelf: playerIndex === this.currentPlayerIndex,
             isSelfDraw,
             passedCards: player.passedCards || [],
             upstreamPassedCards: upstreamPlayer.passedCards || []
@@ -195,8 +196,8 @@ export class Game {
         return this.activeCardSource === 'DECK' && this.currentPlayerIndex === playerIndex;
     }
 
-    ensureHarmonyAction(actions, player, card, isSelfDraw) {
-        if (Rules.canDeclareHarmony(player.hand, player.exposed, card, { isSelfDraw })
+    ensureHarmonyAction(actions, player, card, isSelfDraw, isSelf = isSelfDraw) {
+        if (Rules.canDeclareHarmony(player.hand, player.exposed, card, { isSelfDraw, isSelf })
             && !actions.some(a => a.type === 'HARMONY')) {
             actions.push({ type: 'HARMONY', cards: [] });
         }
@@ -443,7 +444,8 @@ export class Game {
     handleHarmony(playerIndex, card) {
         const p = this.players[playerIndex];
         const isSelfDraw = this.isSelfDrawFor(playerIndex);
-        const reward = Rules.calculateRewards(p.hand, p.exposed, card, { isSelfDraw });
+        const isSelf = playerIndex === this.currentPlayerIndex;
+        const reward = Rules.calculateRewards(p.hand, p.exposed, card, { isSelfDraw, isSelf });
         this.logHarmony(p, reward);
 
         // [RULE-PASSED-RECLAMATION]: Remove claimed card from passer's passedCards pile
@@ -453,7 +455,7 @@ export class Game {
         }
 
         // Finalize state: Add all cards to exposed for visualization
-        const assessed = Rules.assessHarmony(p.hand, p.exposed, card, { isSelfDraw });
+        const assessed = Rules.assessHarmony(p.hand, p.exposed, card, { isSelfDraw, isSelf });
         if (assessed && assessed.partition) {
             p.exposed = assessed.partition;
             p.hand = [];

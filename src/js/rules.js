@@ -349,7 +349,9 @@ export class Rules {
         if (allCards.length !== expectedLength) return null;
 
         let partition = null;
-        const isSelf = options.isSelfDraw !== undefined ? Boolean(options.isSelfDraw) : true;
+        const isSelf = options.isSelf !== undefined
+            ? Boolean(options.isSelf)
+            : (options.isSelfDraw !== undefined ? Boolean(options.isSelfDraw) : true);
 
         // 1. Priority: try legal exposed meld upgrades/merges when activeCard is present ([RULE-EXPOSED-PRIORITY])
         if (activeCard && exposedList.length > 0) {
@@ -799,7 +801,7 @@ export class Rules {
             }
         }
 
-        if (this.canDeclareHarmony(hand, exposed, card, options)) {
+        if (this.canDeclareHarmony(hand, exposed, card, { ...options, isSelf })) {
             if (!moves.some(m => m.type === 'HARMONY')) {
                 moves.push({ type: 'HARMONY', cards: [] });
             }
