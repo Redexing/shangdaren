@@ -557,6 +557,9 @@ export class Game {
         // Check Harmony
         if (this.finishHarmonyIfWon(player)) return;
 
+        // A mandatory HALF-DRAGON / HALF-SNAKE that becomes a third KOU is baozi.
+        if (this.declareBaoziIfThirdKou(player)) return;
+
         // 2. Discard (if not KAI-ZAO/XIA-CE)
         const skipDiscard = ['KAI-ZAO', 'XIA-CE'].includes(action.type);
 
@@ -607,9 +610,10 @@ export class Game {
 
         // Validate discard index first
         const skipDiscard = ['KAI-ZAO', 'XIA-CE'].includes(action.type);
+        const thirdKou = Rules.wouldExceedExposedKouLimit(p.exposed, action.type);
         let discardCard = null;
 
-        if (!skipDiscard) {
+        if (!skipDiscard && !thirdKou) {
             const prospective = this.handAfterMeldClaim(p.hand, action);
             const hasNakedQuad = Boolean(Rules.findNakedQuadInHand(prospective));
             if (hasNakedQuad || Rules.firstLegalDiscardIndex(prospective) === -1) {
@@ -713,6 +717,8 @@ export class Game {
 
         // Check Harmony
         if (this.finishHarmonyIfWon(p)) return;
+
+        if (this.declareBaoziIfThirdKou(p)) return;
 
         const skipDiscard = ['KAI-ZAO', 'XIA-CE'].includes(action.type);
 
@@ -933,6 +939,14 @@ export class Game {
     declareBaoziIfNoLegalDiscard(player) {
         if (Rules.firstLegalDiscardIndex(player.hand) !== -1) return false;
         this.log(`${player.name} is BAO-ZI! (No cards to discard)`);
+        this.endGame({ winner: null, special: 'BAO-ZI', triggerPlayer: player });
+        return true;
+    }
+
+    // [RULE-KOU-MAX-EXPOSED] + [RULE-BAO-ZI]: a third exposed KOU-equivalent loses immediately.
+    declareBaoziIfThirdKou(player) {
+        if (Rules.exposedKouCount(player.exposed) <= 2) return false;
+        this.log(`${player.name} is BAO-ZI! (More than 2 KOU)`);
         this.endGame({ winner: null, special: 'BAO-ZI', triggerPlayer: player });
         return true;
     }

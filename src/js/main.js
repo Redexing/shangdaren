@@ -584,9 +584,11 @@ function onActionClick(type) {
         // In this game, most melds still require a discard unless it's a quad
     }
 
-    // Quads and hands with a naked quad do not discard. Any other meld with no legal discard is baozi.
+    // Quads and hands with a naked quad do not discard. A third KOU-equivalent
+    // is baozi and does not ask for a discard. Any other meld with no legal discard is baozi.
     const prospectiveHand = game.handAfterMeldClaim(game.players[0].hand, action);
-    if (['KAI-ZAO', 'XIA-CE'].includes(type)) {
+    const thirdKou = Rules.wouldExceedExposedKouLimit(game.players[0].exposed, type);
+    if (['KAI-ZAO', 'XIA-CE'].includes(type) || thirdKou) {
         game.confirmHumanMeld(action, -1);
         selectedAction = null;
     } else if (Rules.findNakedQuadInHand(prospectiveHand) || Rules.firstLegalDiscardIndex(prospectiveHand) === -1) {

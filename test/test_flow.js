@@ -551,6 +551,132 @@ export function runFlowTests() {
         );
     });
 
+    // Issue 22: exposed SAO of 九 + a single 子 must become HALF-DRAGON.
+    // That HALF-DRAGON counts as a KOU, so two exposed KOU already means BAO-ZI.
+    withFakeTimers(({ drain }) => {
+        const game = new Game();
+        game.isWatchMode = true;
+        game.players = [
+            new Player('Bot 1', false),
+            new Player('Bot 2', false),
+            new Player('Bot 3', false)
+        ];
+        const sao = {
+            type: 'SAO',
+            cards: [card(801, 5, 1), card(802, 5, 1), card(803, 5, 1)] // 九
+        };
+        const zi = card(804, 5, 2); // 子
+        const spare = card(805, 3, 0); // 七
+        const kouA = { type: 'KOU', cards: [card(806, 0, 0), card(807, 0, 1)] }; // 上大
+        const kouB = { type: 'KOU', cards: [card(808, 1, 0), card(809, 1, 1)] }; // 丘乙
+        const jiu = card(810, 5, 1);
+        game.players[0].exposed = [sao, kouA, kouB];
+        game.players[0].hand = [zi, spare];
+        game.players[1].hand = [card(811, 4, 0)];
+        game.players[2].hand = [card(812, 6, 0)];
+        game.currentPlayerIndex = 0;
+        game.activeCard = jiu;
+        game.activeCardSource = 'DECK';
+        const logs = [];
+        let over = null;
+        game.on(EVENTS.LOG, (msg) => logs.push(msg));
+        game.on(EVENTS.GAME_OVER, (res) => { over = res; });
+
+        game.resolveBotActions(jiu, game.calculateActions(jiu));
+
+        const half = game.players[0].exposed.find(m => m.type === 'HALF-DRAGON');
+        assert(
+            '[RULE-BAO-ZI] Exposed SAO of 九 plus a single 子 is HALF-DRAGON, and a third KOU is BAO-ZI',
+            over && over.special === 'BAO-ZI' && over.triggerPlayer === game.players[0]
+                && half && half.cards.some(c => c.id === zi.id) && half.cards.some(c => c.id === jiu.id)
+                && half.cards.length === 5
+                && game.players[0].hand.length === 1 && game.players[0].hand[0].id === spare.id
+                && game.players[0].discards.length === 0
+                && game.players[0].wins === 0 && game.players[0].totalRewards === 0
+                && game.players[1].wins === 1 && game.players[1].totalRewards === 1
+                && game.players[2].wins === 1 && game.players[2].totalRewards === 1
+                && logs.some(l => l.includes('More than 2 KOU')),
+            `over=${over && over.special} half=${half && half.cards.map(c => c.character).join('')} hand=${game.players[0].hand.map(c => c.character).join('')} logs=${logs.join(' | ')}`
+        );
+
+        // DRAGON is not a KOU, so two exposed KOU plus both other suit cards still plays on.
+        const dragonGame = new Game();
+        dragonGame.players = [
+            new Player('Bot 1', false),
+            new Player('Bot 2', false),
+            new Player('Bot 3', false)
+        ];
+        const dragonSao = {
+            type: 'SAO',
+            cards: [card(821, 5, 1), card(822, 5, 1), card(823, 5, 1)]
+        };
+        const ba = card(824, 5, 0); // 八
+        const zi2 = card(825, 5, 2); // 子
+        const spare2 = card(826, 3, 1); // 十
+        dragonGame.players[0].exposed = [
+            dragonSao,
+            { type: 'KOU', cards: [card(827, 0, 0), card(828, 0, 1)] },
+            { type: 'KOU', cards: [card(829, 1, 0), card(830, 1, 1)] }
+        ];
+        dragonGame.players[0].hand = [ba, zi2, spare2];
+        const jiu2 = card(831, 5, 1);
+        let dragonOver = null;
+        dragonGame.on(EVENTS.GAME_OVER, (res) => { dragonOver = res; });
+        dragonGame.executeBotMeld(0, jiu2, Rules.getActions(
+            dragonGame.players[0].hand, jiu2, true, dragonGame.players[0].exposed
+        )[0]);
+        assert(
+            '[RULE-KOU-MAX-EXPOSED] DRAGON with 2 exposed KOU is not a third KOU and is not BAO-ZI',
+            dragonOver === null
+                && dragonGame.players[0].exposed.some(m => m.type === 'DRAGON' && m.cards.length === 6)
+                && dragonGame.players[0].discards.length === 1
+                && dragonGame.players[0].discards[0].id === spare2.id
+                && Rules.exposedKouCount(dragonGame.players[0].exposed) === 2,
+            `over=${dragonOver && dragonOver.special} exposed=${dragonGame.players[0].exposed.map(m => m.type).join(',')} discards=${dragonGame.players[0].discards.map(c => c.character).join('')}`
+        );
+        dragonGame.flowToken++;
+
+        // Human confirm of the same third-KOU HALF-DRAGON does not ask for the spare discard.
+        const humanGame = new Game();
+        humanGame.players = [
+            new Player('You', true),
+            new Player('Bot Left', false),
+            new Player('Bot Right', false)
+        ];
+        const humanSao = {
+            type: 'SAO',
+            cards: [card(841, 5, 1), card(842, 5, 1), card(843, 5, 1)]
+        };
+        const humanZi = card(844, 5, 2);
+        const humanSpare = card(845, 4, 0);
+        humanGame.players[0].exposed = [
+            humanSao,
+            { type: 'KOU', cards: [card(846, 0, 0), card(847, 0, 1)] },
+            { type: 'KOU', cards: [card(848, 1, 0), card(849, 1, 1)] }
+        ];
+        humanGame.players[0].hand = [humanZi, humanSpare];
+        const humanJiu = card(850, 5, 1);
+        humanGame.activeCard = humanJiu;
+        humanGame.activeCardSource = 'DECK';
+        humanGame.currentPlayerIndex = 0;
+        let humanOver = null;
+        humanGame.on(EVENTS.GAME_OVER, (res) => { humanOver = res; });
+        const humanAction = Rules.getActions(
+            humanGame.players[0].hand, humanJiu, true, humanGame.players[0].exposed
+        )[0];
+        humanGame.confirmHumanMeld(humanAction, -1);
+        drain(5);
+        assert(
+            '[RULE-BAO-ZI] Human HALF-DRAGON that would be a third KOU confirms without a discard and loses',
+            humanOver && humanOver.special === 'BAO-ZI' && humanOver.triggerPlayer === humanGame.players[0]
+                && humanGame.players[0].exposed.some(m => m.type === 'HALF-DRAGON' && m.cards.some(c => c.id === humanZi.id))
+                && humanGame.players[0].hand.length === 1 && humanGame.players[0].hand[0].id === humanSpare.id
+                && humanGame.players[0].discards.length === 0
+                && humanGame.players[1].totalRewards === 1 && humanGame.players[2].totalRewards === 1,
+            `over=${humanOver && humanOver.special} hand=${humanGame.players[0].hand.map(c => c.character).join('')} discards=${humanGame.players[0].discards.length}`
+        );
+    });
+
     // [RULE-NAKED-QUAD-REVEAL]: Naked 4-of-a-kind in hand is revealed in EXPOSED and skips first discard
     withFakeTimers(({ drain }) => {
         const game = new Game();
