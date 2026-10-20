@@ -188,120 +188,121 @@ export class Rules {
         return total;
     }
 
-    static findPerfectPartition(cards, forcedKouCount = -1) {
+    static findPerfectPartition(cards, forcedKouCount = -1, context = null) {
         if (!cards || cards.length === 0) return null;
-        // Sort to optimize search
-        const sorted = [...cards].sort((a, b) => a.typeId - b.typeId);
-        const res = this._partitionRecursive(sorted, []);
+        // Sort so each suit is contiguous and lower characters are tried first.
+        const sorted = [...cards].sort((a, b) => a.typeId - b.typeId || a.id - b.id);
+        const res = this._partitionRecursive(sorted, [], context);
         if (!res) return null;
 
         if (forcedKouCount !== -1) {
-            let kous = 0;
-            res.forEach(m => {
-                if (m.type === 'KOU' || m.type === 'HALF-DRAGON' || m.type === 'HALF-SNAKE') kous++;
-            });
-            if (kous !== forcedKouCount) return null;
+            if (this._countKous(res) !== forcedKouCount) return null;
         }
         return res;
     }
 
-    static _partitionRecursive(remaining, melds) {
+    // A claimed card (another player drew or passed it) scores as the claimed meld.
+    // A self-drawn completing card keeps the self-drawn meld name.
+    static _typedMeld(selfType, cards, context) {
+        const meld = { type: selfType, cards };
+        if (!context || context.isSelf !== false || !context.claimedCard) return meld;
+        if (!cards.some(c => c.id === context.claimedCard.id)) return meld;
+        const claimed = {
+            SAO: 'PENG',
+            'KAI-ZAO': 'XIA-CE',
+            DRAGON: 'SNAKE',
+            'HALF-DRAGON': 'HALF-SNAKE'
+        };
+        if (claimed[selfType]) meld.type = claimed[selfType];
+        return meld;
+    }
+
+    static _quadKind(cards, context) {
+        if (!context || context.isSelf !== false || !context.claimedCard) return 'KAI-ZAO';
+        return cards.some(c => c.id === context.claimedCard.id) ? 'XIA-CE' : 'KAI-ZAO';
+    }
+
+    static _takeMeld(remaining, melds, set, meld, context) {
+        const ids = new Set(set.map(c => c.id));
+        const next = remaining.filter(c => !ids.has(c.id));
+        return this._partitionRecursive(next, [...melds, meld], context);
+    }
+
+    // [RULE-SUIT-MELD-PRIORITY]: inside one suit, form 4-of-a-kind patterns, then
+    // 3-of-a-kind, then CHI, then KOU. Never split a 3- or 4-of-a-kind into CHI/KOU.
+    static _partitionRecursive(remaining, melds, context = null) {
         if (remaining.length === 0) return melds;
 
-        const card = remaining[0];
-        const quads = remaining.filter(c => c.typeId === card.typeId);
+        const suitIndex = remaining[0].suiteIndex;
+        const byChar = [[], [], []];
+        remaining.forEach(c => {
+            if (c.suiteIndex === suitIndex) byChar[c.characterIndex].push(c);
+        });
+        const counts = byChar.map(group => group.length);
+        const quadChars = [0, 1, 2].filter(i => counts[i] === 4);
 
-        // 0. Try Two-Dragons-Tussling (9 cards: two 4-of-a-kind + 1 other from same suit)
-        if (quads.length === 4) {
-            const suiteCards = remaining.filter(c => c.suiteIndex === card.suiteIndex && c.typeId !== card.typeId);
-            const otherChars = [...new Set(suiteCards.map(c => c.characterIndex))];
-            if (otherChars.length === 2) {
-                for (let i = 0; i < 2; i++) {
-                    const secondQuadChar = otherChars[i];
-                    const singleChar = otherChars[1 - i];
-                    const secondQuads = suiteCards.filter(c => c.characterIndex === secondQuadChar);
-                    const singleCard = suiteCards.find(c => c.characterIndex === singleChar);
-                    if (secondQuads.length === 4 && singleCard) {
-                        const twoDragonsSet = [...quads, ...secondQuads, singleCard];
-                        const nextRemaining = remaining.filter(c => !twoDragonsSet.some(d => d.id === c.id));
-                        const res = this._partitionRecursive(
-                            nextRemaining,
-                            [...melds, { type: 'TWO-DRAGONS-TUSSLING', cards: twoDragonsSet }]
-                        );
-                        if (res) return res;
-                    }
+        const take = (set, meld) => this._takeMeld(remaining, melds, set, meld, context);
+
+        if (quadChars.length >= 2) {
+            // Two quads plus one other card of the suit are TWO-DRAGONS-TUSSLING.
+            // If that shape cannot finish the hand, keep the quads whole instead.
+            if (quadChars.length === 2) {
+                const singleChar = [0, 1, 2].find(i => counts[i] > 0 && counts[i] < 4);
+                if (singleChar !== undefined) {
+                    const quadA = byChar[quadChars[0]];
+                    const quadB = byChar[quadChars[1]];
+                    const set = [...quadA, ...quadB, byChar[singleChar][0]];
+                    const tussling = take(set, {
+                        type: 'TWO-DRAGONS-TUSSLING',
+                        cards: set,
+                        quadTypes: [this._quadKind(quadA, context), this._quadKind(quadB, context)]
+                    });
+                    if (tussling) return tussling;
                 }
             }
+            const plainQuad = take(byChar[quadChars[0]], this._typedMeld('KAI-ZAO', byChar[quadChars[0]], context));
+            return plainQuad || null;
         }
 
-        // 1. Try Dragon/Snake (6 cards: 4-of-a-kind + 2 others from suite)
-        if (quads.length === 4) {
-            const suiteCards = remaining.filter(c => c.suiteIndex === card.suiteIndex && c.typeId !== card.typeId);
-            const uniqueChars = [...new Set(suiteCards.map(c => c.characterIndex))];
-            if (uniqueChars.length >= 2) {
-                for (let i = 0; i < uniqueChars.length; i++) {
-                    for (let j = i + 1; j < uniqueChars.length; j++) {
-                        const c1 = suiteCards.find(c => c.characterIndex === uniqueChars[i]);
-                        const c2 = suiteCards.find(c => c.characterIndex === uniqueChars[j]);
-                        const dragonSet = [...quads, c1, c2];
-                        const nextRemaining = remaining.filter(c => !dragonSet.some(d => d.id === c.id));
-                        const res = this._partitionRecursive(nextRemaining, [...melds, { type: 'DRAGON', cards: dragonSet }]);
-                        if (res) return res;
-                    }
-                }
+        if (quadChars.length === 1) {
+            const quad = byChar[quadChars[0]];
+            const others = [0, 1, 2].filter(i => i !== quadChars[0] && counts[i] > 0);
+            // Longer 4-of-a-kind shapes first. A shorter one is used only when the
+            // longer shape cannot finish a perfect partition of the whole hand.
+            if (others.length >= 2) {
+                const dragonSet = [quad, byChar[others[0]][0], byChar[others[1]][0]].flat();
+                const dragon = take(dragonSet, this._typedMeld('DRAGON', dragonSet, context));
+                if (dragon) return dragon;
             }
-        }
-
-        // 2. Try Half-Dragon/Half-Snake (5 cards: 4-of-a-kind + 1 other from suite)
-        if (quads.length === 4) {
-            const suiteCards = remaining.filter(c => c.suiteIndex === card.suiteIndex && c.typeId !== card.typeId);
-            const uniqueChars = [...new Set(suiteCards.map(c => c.characterIndex))];
-            for (const charIdx of uniqueChars) {
-                const match = suiteCards.find(c => c.characterIndex === charIdx);
-                const halfSet = [...quads, match];
-                const nextRemaining = remaining.filter(c => !halfSet.some(h => h.id === c.id));
-                const res = this._partitionRecursive(nextRemaining, [...melds, { type: 'HALF-DRAGON', cards: halfSet }]);
-                if (res) return res;
+            for (const other of others) {
+                const halfSet = [...quad, byChar[other][0]];
+                const half = take(halfSet, this._typedMeld('HALF-DRAGON', halfSet, context));
+                if (half) return half;
             }
+            const plain = take(quad, this._typedMeld('KAI-ZAO', quad, context));
+            if (plain) return plain;
+            return null;
         }
 
-        // 3. Try Quad (XIA-CE / KAI-ZAO)
-        if (quads.length === 4) {
-            const nextRemaining = remaining.filter(c => !quads.some(q => q.id === c.id));
-            const res = this._partitionRecursive(nextRemaining, [...melds, { type: 'XIA-CE', cards: quads }]);
-            if (res) return res;
+        const tripChar = counts.findIndex(count => count >= 3);
+        if (tripChar !== -1) {
+            const trip = byChar[tripChar].slice(0, 3);
+            const res = take(trip, this._typedMeld('SAO', trip, context));
+            return res || null;
         }
 
-        // 4. Try Trip (SAO / PENG)
-        if (quads.length >= 3) {
-            const trips = quads.slice(0, 3);
-            const nextRemaining = remaining.filter(c => !trips.some(t => t.id === c.id));
-            const res = this._partitionRecursive(nextRemaining, [...melds, { type: 'SAO', cards: trips }]);
-            if (res) return res;
+        if (counts[0] >= 1 && counts[1] >= 1 && counts[2] >= 1) {
+            const suiteSet = [byChar[0][0], byChar[1][0], byChar[2][0]];
+            const chi = take(suiteSet, { type: 'CHI', cards: suiteSet });
+            if (chi) return chi;
         }
 
-        // 5. Try Suite (CHI)
-        const suiteIndices = [0, 1, 2];
-        const suiteSet = [];
-        let possibleCHI = true;
-        for (const idx of suiteIndices) {
-            const match = remaining.find(c => c.suiteIndex === card.suiteIndex && c.characterIndex === idx && !suiteSet.some(s => s.id === c.id));
-            if (match) suiteSet.push(match);
-            else possibleCHI = false;
-        }
-        if (possibleCHI) {
-            const nextRemaining = remaining.filter(c => !suiteSet.some(s => s.id === c.id));
-            const res = this._partitionRecursive(nextRemaining, [...melds, { type: 'CHI', cards: suiteSet }]);
-            if (res) return res;
-        }
-
-        // 6. Try Pair (KOU)
-        const others = remaining.filter(c => c.id !== card.id && c.suiteIndex === card.suiteIndex && c.characterIndex !== card.characterIndex);
-        for (const other of others) {
-            const kouSet = [card, other];
-            const nextRemaining = remaining.filter(c => !kouSet.some(k => k.id === c.id));
-            const res = this._partitionRecursive(nextRemaining, [...melds, { type: 'KOU', cards: kouSet }]);
-            if (res) return res;
+        const anchor = byChar.find(group => group.length > 0)[0];
+        for (let charIndex = 0; charIndex < 3; charIndex++) {
+            if (byChar[charIndex].length === 0 || byChar[charIndex][0].id === anchor.id) continue;
+            const kouSet = [anchor, byChar[charIndex][0]];
+            const kou = take(kouSet, { type: 'KOU', cards: kouSet });
+            if (kou) return kou;
         }
 
         return null;
@@ -326,13 +327,13 @@ export class Rules {
         return this.exposedKouCount(exposed) >= 2;
     }
 
-    static _partitionWithExposed(exposedMelds, handPool) {
+    static _partitionWithExposed(exposedMelds, handPool, context = null) {
         const exposedKous = this._countKous(exposedMelds);
         if (exposedKous > 2) return null;
         if (handPool.length === 0) {
             return exposedKous === 2 ? [...exposedMelds] : null;
         }
-        const handPartition = this.findPerfectPartition(handPool, 2 - exposedKous);
+        const handPartition = this.findPerfectPartition(handPool, 2 - exposedKous, context);
         if (!handPartition) return null;
         return [...exposedMelds, ...handPartition];
     }
@@ -363,6 +364,8 @@ export class Rules {
         const isSelf = options.isSelf !== undefined
             ? Boolean(options.isSelf)
             : (options.isSelfDraw !== undefined ? Boolean(options.isSelfDraw) : true);
+        // Claimed vs self-drawn naming applies only to the meld that contains this card.
+        const partitionContext = activeCard ? { claimedCard: activeCard, isSelf } : null;
 
         // 1. Priority: try legal exposed meld upgrades/merges when activeCard is present ([RULE-EXPOSED-PRIORITY])
         if (activeCard && exposedList.length > 0) {
@@ -376,7 +379,7 @@ export class Rules {
                 // KOU -> CHI
                 if (this.isLegalMeldUpgrade(m, activeCard, 'CHI')) {
                     const nextExp = exposedList.map((em, idx) => idx === i ? { ...em, type: 'CHI', cards: [...em.cards, activeCard] } : em);
-                    partition = this._partitionWithExposed(nextExp, handList);
+                    partition = this._partitionWithExposed(nextExp, handList, partitionContext);
                 }
                 // HALF-DRAGON/HALF-SNAKE -> TWO-DRAGONS-TUSSLING (with exposed SAO or 3 in hand)
                 if (!partition && (m.type === 'HALF-DRAGON' || m.type === 'HALF-SNAKE')) {
@@ -392,7 +395,7 @@ export class Rules {
                                 cards: [...em.cards, ...exposedList[saoIdx].cards, activeCard],
                                 quadTypes: [q1, q2]
                             } : em);
-                        partition = this._partitionWithExposed(nextExp, handList);
+                        partition = this._partitionWithExposed(nextExp, handList, partitionContext);
                     } else if (sameInHand.length === 3 && this.isLegalMeldUpgrade(m, activeCard, 'TWO-DRAGONS-TUSSLING', sameInHand)) {
                         const nextExp = exposedList.map((em, idx) => idx === i ? {
                             ...em,
@@ -401,14 +404,14 @@ export class Rules {
                             quadTypes: [q1, q2]
                         } : em);
                         const remHand = handList.filter(c => !sameInHand.some(sc => sc.id === c.id));
-                        partition = this._partitionWithExposed(nextExp, remHand);
+                        partition = this._partitionWithExposed(nextExp, remHand, partitionContext);
                     } else if (this.isLegalMeldUpgrade(m, activeCard, isSelf ? 'DRAGON' : 'SNAKE')) {
                         const nextExp = exposedList.map((em, idx) => idx === i ? {
                             ...em,
                             type: isSelf ? 'DRAGON' : 'SNAKE',
                             cards: [...em.cards, activeCard]
                         } : em);
-                        partition = this._partitionWithExposed(nextExp, handList);
+                        partition = this._partitionWithExposed(nextExp, handList, partitionContext);
                     }
                 }
                 // SAO -> DRAGON/SNAKE or HALF-DRAGON/HALF-SNAKE
@@ -422,7 +425,7 @@ export class Rules {
                                 type: isSelf ? 'DRAGON' : 'SNAKE',
                                 cards: [...em.cards, ...exposedList[kouIdx].cards, activeCard]
                             } : em);
-                        partition = this._partitionWithExposed(nextExp, handList);
+                        partition = this._partitionWithExposed(nextExp, handList, partitionContext);
                     } else if (availUnique.length >= 2) {
                         const c1 = availSuite.find(c => c.characterIndex === availUnique[0]);
                         const c2 = availSuite.find(c => c.characterIndex === availUnique[1]);
@@ -432,7 +435,7 @@ export class Rules {
                             cards: [...em.cards, c1, c2, activeCard]
                         } : em);
                         const remHand = handList.filter(c => c.id !== c1.id && c.id !== c2.id);
-                        partition = this._partitionWithExposed(nextExp, remHand);
+                        partition = this._partitionWithExposed(nextExp, remHand, partitionContext);
                     } else if (availUnique.length === 1) {
                         const c1 = availSuite.find(c => c.characterIndex === availUnique[0]);
                         const nextExp = exposedList.map((em, idx) => idx === i ? {
@@ -441,7 +444,7 @@ export class Rules {
                             cards: [...em.cards, c1, activeCard]
                         } : em);
                         const remHand = handList.filter(c => c.id !== c1.id);
-                        partition = this._partitionWithExposed(nextExp, remHand);
+                        partition = this._partitionWithExposed(nextExp, remHand, partitionContext);
                     }
                 }
                 // KOU + 3-of-a-kind in hand + 4th activeCard -> DRAGON/SNAKE
@@ -452,7 +455,7 @@ export class Rules {
                         cards: [...em.cards, ...sameInHand, activeCard]
                     } : em);
                     const remHand = handList.filter(c => !sameInHand.some(sc => sc.id === c.id));
-                    partition = this._partitionWithExposed(nextExp, remHand);
+                    partition = this._partitionWithExposed(nextExp, remHand, partitionContext);
                 }
             }
         }
@@ -460,7 +463,7 @@ export class Rules {
         // 2. Otherwise keep exposed melds intact and partition hand (+ activeCard)
         if (!partition) {
             const handPool = activeCard ? [...handList, activeCard] : handList;
-            partition = this._partitionWithExposed(exposedList, handPool);
+            partition = this._partitionWithExposed(exposedList, handPool, partitionContext);
 
             // If activeCard was already placed into hand, allow growing an exposed KOU into CHI
             if (!partition && !activeCard && exposedList.length > 0) {
@@ -471,7 +474,7 @@ export class Rules {
                         if (match) {
                             const nextExp = exposedList.map((em, idx) => idx === i ? { ...em, type: 'CHI', cards: [...em.cards, match] } : em);
                             const remHand = handPool.filter(c => c.id !== match.id);
-                            partition = this._partitionWithExposed(nextExp, remHand);
+                            partition = this._partitionWithExposed(nextExp, remHand, partitionContext);
                         }
                     }
                 }

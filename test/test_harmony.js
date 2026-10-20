@@ -357,6 +357,84 @@ export function runHarmonyTests() {
         }
     });
 
+    // Issue #25: two 丘, two 乙, two 几, plus a claimed 几, must become PENG + two 丘乙 KOU.
+    // Splitting the three 几 across a CHI and two KOU is not a legal partition.
+    {
+        const hand = [
+            new Card(getNextId(), MEAT_SUITE_2, 0),
+            new Card(getNextId(), MEAT_SUITE_2, 0),
+            new Card(getNextId(), MEAT_SUITE_2, 1),
+            new Card(getNextId(), MEAT_SUITE_2, 1),
+            new Card(getNextId(), MEAT_SUITE_2, 2),
+            new Card(getNextId(), MEAT_SUITE_2, 2),
+            ...makeChi(VEG_SUITE_1)
+        ];
+        const exposed = [
+            { type: 'CHI', cards: makeChi(MEAT_SUITE_1) },
+            { type: 'CHI', cards: makeChi(6) }
+        ];
+        const active = new Card(getNextId(), MEAT_SUITE_2, 2);
+        const claimed = Rules.assessHarmony(hand, exposed, active, { isSelf: false, isSelfDraw: false });
+        const reward = Rules.calculateRewards(hand, exposed, active, { isSelf: false, isSelfDraw: false });
+        const peng = claimed && claimed.partition.find(m => m.type === 'PENG');
+        const splitChi = claimed && claimed.partition.some(m =>
+            m.type === 'CHI' && m.cards[0].suiteIndex === MEAT_SUITE_2
+        );
+        const kouPairs = claimed ? claimed.partition.filter(m => m.type === 'KOU' && m.cards[0].suiteIndex === MEAT_SUITE_2) : [];
+        const claimedOk = claimed
+            && claimed.points === 10
+            && peng
+            && peng.cards.every(c => c.characterIndex === 2)
+            && !splitChi
+            && kouPairs.length === 2
+            && reward.total === 1
+            && reward.reasons.length === 1
+            && reward.reasons[0] === 'exact-10';
+        if (claimedOk) {
+            console.log('✅ Issue #25 claimed 几 partitions as PENG + two 丘乙 KOU at exact-10: Passed');
+        } else {
+            console.error('❌ Issue #25 claimed 几 partitions as PENG + two 丘乙 KOU at exact-10: Failed');
+            console.error('   points', claimed && claimed.points, 'reward', reward);
+            if (claimed) claimed.partition.forEach(m => console.error('  ', m.type, m.cards.map(c => c.character).join('')));
+            allPassed = false;
+        }
+
+        const selfAssessed = Rules.assessHarmony(hand, exposed, active, { isSelf: true, isSelfDraw: true });
+        const selfDrawn = Rules.calculateRewards(hand, exposed, active, { isSelf: true, isSelfDraw: true });
+        const selfSao = selfAssessed && selfAssessed.partition.some(m => m.type === 'SAO' && m.cards.every(c => c.characterIndex === 2));
+        if (selfSao && selfDrawn.points === 13 && selfDrawn.total === 1 && selfDrawn.reasons.length === 1 && selfDrawn.reasons[0] === 'self-draw') {
+            console.log('✅ Issue #25 self-drawn 几 is SAO (13 Fu, self-draw only): Passed');
+        } else {
+            console.error('❌ Issue #25 self-drawn 几 is SAO (13 Fu, self-draw only): Failed');
+            console.error('   ', selfDrawn);
+            allPassed = false;
+        }
+    }
+
+    // A veggie claimed trip scores 2 Fu as PENG. The old CHI split scored 0 and faked exact-10.
+    {
+        const hand = [
+            ...makeChi(MEAT_SUITE_1),
+            ...makeChi(MEAT_SUITE_3),
+            new Card(getNextId(), VEG_SUITE_2, 0),
+            new Card(getNextId(), VEG_SUITE_2, 0),
+            new Card(getNextId(), VEG_SUITE_2, 1),
+            new Card(getNextId(), VEG_SUITE_2, 1),
+            new Card(getNextId(), VEG_SUITE_2, 2),
+            new Card(getNextId(), VEG_SUITE_2, 2)
+        ];
+        const exposed = [{ type: 'SAO', cards: makeTrip(VEG_SUITE_3, 0) }];
+        const active = new Card(getNextId(), VEG_SUITE_2, 2);
+        const reward = Rules.calculateRewards(hand, exposed, active, { isSelf: false });
+        if (reward.total === 0 && reward.points === 12) {
+            console.log('✅ Claimed veggie trip scores as PENG and loses the false exact-10: Passed');
+        } else {
+            console.error('❌ Claimed veggie trip scores as PENG and loses the false exact-10: Failed');
+            console.error('   ', reward);
+            allPassed = false;
+        }
+    }
+
     if (allPassed) {
         console.log("All Rules.canDeclareHarmony tests passed successfully!");
     } else {

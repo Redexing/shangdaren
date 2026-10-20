@@ -277,21 +277,23 @@ export function runRewardTests() {
         ['big-black']
     );
 
+    // 16 all-meat red cards have to include 3-of-a-kind. Those trips stay whole,
+    // so this shape is three SAO + one SAO + two KOU (28 Fu) rather than CHI splits.
     expectReward(
         'All meat and all red stack',
         [
-            ...kou(0, 0, 1),
-            ...kou(2, 0, 1),
-            ...chi(0),
-            ...chi(2),
-            ...chi(0),
-            ...chi(2)
+            ...cards(0, 0, 3),
+            ...cards(0, 1, 3),
+            ...cards(0, 2, 3),
+            ...cards(2, 0, 3),
+            ...cards(2, 1, 2),
+            ...cards(2, 2, 2)
         ],
         [],
         null,
         {},
-        4,
-        ['all-meat', 'big-red']
+        5,
+        ['score-20', 'all-meat', 'big-red']
     );
 
     expectReward(
