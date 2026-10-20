@@ -114,6 +114,7 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 
 ### Meld Formation
 - **`[RULE-EXPOSED-PRIORITY]`**: When an incoming card can form or grow a meld in both EXPOSED and HAND, upgrading the EXPOSED meld takes priority (e.g., if a player holds an 尔小 KOU in both EXPOSED and HAND, an incoming 生 upgrades the EXPOSED KOU to CHI first).
+- **`[RULE-SUIT-MELD-PRIORITY]`**: Within one suit, cards are grouped in this order: 4-of-a-kind patterns (TWO-DRAGONS-TUSSLING, then DRAGON/SNAKE, then HALF-DRAGON/HALF-SNAKE, then KAI-ZAO/XIA-CE), then 3-of-a-kind (SAO/PENG), then CHI, then KOU. A 3-of-a-kind or 4-of-a-kind is never split across CHI or KOU. A shorter 4-of-a-kind shape is used only when the longer one cannot finish a perfect partition of the whole hand. The meld that contains the completing card is the self-drawn type (SAO, KAI-ZAO, DRAGON, HALF-DRAGON) when this player drew it, and the claimed type (PENG, XIA-CE, SNAKE, HALF-SNAKE) when another player drew or passed it.
 - **`[RULE-MELD-NO-SPLIT]`**: Melds in EXPOSED can grow or merge, but can never be split.
 - **`[RULE-PENG-IMMUTABLE]`**: An exposed PENG meld cannot be further grown or reformed.
 - **`[RULE-MELD-UPGRADE-KOU]`**: An exposed KOU can grow into a CHI upon claiming the missing third character of the suit.
@@ -135,7 +136,7 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 
 ### Harmony (Winning) Conditions
 - **`[RULE-HARMONY-CARD-COUNT]`**: The total card count must equal $16 + \text{exposedQuadsCount}$ (15 in hand + 1 completing card, plus 1 for each exposed 4-of-a-kind quad).
-- **`[RULE-HARMONY-FULL-PARTITION]`**: All cards (HAND + EXPOSED + completing card) must partition completely into valid melds.
+- **`[RULE-HARMONY-FULL-PARTITION]`**: All cards (HAND + EXPOSED + completing card) must partition completely into valid melds, following `[RULE-SUIT-MELD-PRIORITY]`.
 - **`[RULE-HARMONY-EXACT-2-KOU]`**: The winning partition must contain exactly 2 KOU melds (HALF-DRAGON and HALF-SNAKE count as 1 KOU).
 - **`[RULE-HARMONY-SCORE-THRESHOLD]`**: Total score must be $\ge 10$ Fu. This threshold is waived if every card in the winning set is a Veggie card.
 - **`[RULE-HARMONY-MIN-REWARDS]`**: The winning hand must score at least 1 Reward (大). A hand meeting all other criteria with 0 rewards cannot win and must continue playing. If a subsequent mandatory meld leaves no legal discard, BAO-ZI is triggered.
