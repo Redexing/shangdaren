@@ -2,7 +2,7 @@ import { Game } from '../src/js/game.js';
 import { Player } from '../src/js/player.js';
 import { Card } from '../src/js/card.js';
 import { Rules } from '../src/js/rules.js';
-import { buildScreenshotHarmonyState } from './test_harmony.js';
+import { buildAllVeggieWaiverState, buildScreenshotHarmonyState } from './test_harmony.js';
 
 function createBareGame() {
     const game = new Game();
@@ -18,7 +18,7 @@ function createBareGame() {
 }
 
 function loadScreenshotHand(game) {
-    const state = buildScreenshotHarmonyState();
+    const state = buildAllVeggieWaiverState();
     game.players[0].hand = state.hand;
     game.players[0].exposed = state.exposed;
     game.players[1].hand = [];
@@ -108,6 +108,26 @@ export function runHarmonyActionTests() {
         assert(
             'Passed winning tile from upstream makes Harmony a must action',
             types.includes('HARMONY') && !types.includes('PASS'),
+            `Got: ${types.join(', ')}`
+        );
+    }
+
+    {
+        const game = createBareGame();
+        const zuo = (() => {
+            const state = buildScreenshotHarmonyState();
+            game.players[0].hand = state.hand;
+            game.players[0].exposed = state.exposed;
+            return state.activeCard;
+        })();
+        game.currentPlayerIndex = 0;
+        game.activeCard = zuo;
+        game.activeCardSource = 'DECK';
+
+        const types = actionTypesFor(game, zuo, 0);
+        assert(
+            '[RULE-HARMONY-SCORE-THRESHOLD] Exposed SAO blocks Harmony on the 8-fu all-veggie screenshot',
+            !types.includes('HARMONY'),
             `Got: ${types.join(', ')}`
         );
     }
