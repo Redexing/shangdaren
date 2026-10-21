@@ -214,6 +214,7 @@ export function runGetActionsTests() {
     const suite2Idx = 1; // Suite 2: 丘，乙，几
     const suite5Idx = 4; // Suite 5: 尔, 小, 生
     const suite7Idx = 6; // Suite 7: 佳, 作, 仁
+    const suite8Idx = 7; // Suite 8: 可, 知, 礼
 
     const testCases = [
         {
@@ -469,6 +470,45 @@ export function runGetActionsTests() {
             isSelf: true,
             expected: ['KOU', 'PASS'],
             expectedKouPartnerId: 60 // Must pair with redundant 生, never breaking 尔尔尔
+        },
+        {
+            name: "[RULE-KOU-NO-BREAK-HAND] Issue #20: 可知礼礼礼 cannot KOU on another 可",
+            hand: [
+                new Card(80, suite8Idx, 0), // 可
+                new Card(81, suite8Idx, 1), // 知
+                new Card(82, suite8Idx, 2), // 礼
+                new Card(83, suite8Idx, 2), // 礼
+                new Card(84, suite8Idx, 2)  // 礼
+            ],
+            card: new Card(85, suite8Idx, 0), // passed or drawn 可
+            isSelf: false,
+            expected: ['PASS']
+        },
+        {
+            name: "[RULE-KOU-NO-BREAK-HAND] Issue #20: self-drawn 可 also cannot break 可知礼礼礼",
+            hand: [
+                new Card(86, suite8Idx, 0), // 可
+                new Card(87, suite8Idx, 1), // 知
+                new Card(88, suite8Idx, 2), // 礼
+                new Card(89, suite8Idx, 2), // 礼
+                new Card(90, suite8Idx, 2)  // 礼
+            ],
+            card: new Card(91, suite8Idx, 0), // 可
+            isSelf: true,
+            expected: ['PASS']
+        },
+        {
+            name: "[RULE-KOU-NO-BREAK-HAND] Spare 礼 may KOU while 可知礼 stays intact",
+            hand: [
+                new Card(92, suite8Idx, 0), // 可
+                new Card(93, suite8Idx, 1), // 知
+                new Card(94, suite8Idx, 2), // 礼
+                new Card(95, suite8Idx, 2)  // 礼
+            ],
+            card: new Card(96, suite8Idx, 0), // 可
+            isSelf: true,
+            expected: ['KOU', 'PASS'],
+            expectedKouPartnerId: 94
         },
         {
             name: "Prohibit breaking 3-of-a-kind (小x3) in hand to form KOU with 生",

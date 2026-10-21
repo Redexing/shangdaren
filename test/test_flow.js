@@ -1,6 +1,7 @@
 import { Game, EVENTS } from '../src/js/game.js';
 import { Player } from '../src/js/player.js';
 import { Card } from '../src/js/card.js';
+import { Deck } from '../src/js/deck.js';
 import { Rules } from '../src/js/rules.js';
 import { buildScreenshotHarmonyState } from './test_harmony.js';
 
@@ -775,6 +776,39 @@ export function runFlowTests() {
             '[RULE-PASSED-RECLAMATION] Upgrading an exposed KOU with a passed card removes it from passer passedCards',
             game.players[0].passedCards.length === 0 && game.players[1].exposed[0].type === 'CHI',
             `p0Passed=${game.players[0].passedCards.length} p1Meld=${game.players[1].exposed[0].type}`
+        );
+    });
+
+    // Issue #20 seed 4088527162: Bot 1 is dealt 可知礼礼礼. The passed 可 must not become a KOU.
+    withFakeTimers(({ drain }) => {
+        const game = new Game();
+        const random = Math.random;
+        Math.random = () => 0.95;
+        const logs = [];
+        game.log = (msg) => logs.push(msg);
+        game.isWatchMode = true;
+        game.deck = new Deck(4088527162);
+        game.players = [
+            new Player('Bot 1', false),
+            new Player('Bot 2', false),
+            new Player('Bot 3', false)
+        ];
+        for (let i = 0; i < 15; i++) {
+            game.players.forEach(p => p.draw(game.deck.draw()));
+        }
+        const bot1 = game.players[0].hand.map(c => c.character).join('');
+        game.currentPlayerIndex = 2;
+        game.startTurn();
+        drain(40);
+        Math.random = random;
+        const opened = logs.slice(0, 6).join(' | ');
+        assert(
+            'Issue #20 seed: Bot 1 declines the passed 可 instead of forming KOU',
+            bot1.includes('可') && bot1.includes('知') && bot1.split('礼').length - 1 === 3
+                && logs.some(l => l.includes('Bot 3 PASS (Passed) 可'))
+                && logs.some(l => l.includes('Bot 1 declined passed card'))
+                && !logs.slice(0, 8).some(l => l.includes('Bot 1 performs KOU')),
+            `hand=${bot1} log=${opened}`
         );
     });
 
