@@ -435,6 +435,56 @@ export function runHarmonyTests() {
         }
     }
 
+    // Issue #20: the winning reveal keeps an exposed PENG, labels a claimed 作 as PENG,
+    // and labels only the concealed 九九九 as SAO.
+    {
+        const pengBa = {
+            type: 'PENG',
+            cards: [card(VEG_SUITE_3, 0), card(VEG_SUITE_3, 0), card(VEG_SUITE_3, 0)]
+        };
+        const exposed = [
+            pengBa,
+            { type: 'KOU', cards: [card(VEG_SUITE_2, 0), card(VEG_SUITE_2, 2)] } // 尔生
+        ];
+        const hand = [
+            ...trip(VEG_SUITE_3, 1), // 九九九 concealed
+            card(VEG_SUITE_4, 1), card(VEG_SUITE_4, 1), // 作作
+            card(VEG_SUITE_5, 0), card(VEG_SUITE_5, 1), card(VEG_SUITE_5, 2), // 可知礼
+            card(VEG_SUITE_4, 0), card(VEG_SUITE_4, 2) // 佳仁
+        ];
+        const active = card(VEG_SUITE_4, 1); // 作 claimed from another player
+        const claimed = Rules.assessHarmony(hand, exposed, active, { isSelf: false, isSelfDraw: false });
+        const types = (ch, kind) => claimed && claimed.partition.filter(m =>
+            m.type === kind && m.cards.every(c => c.character === ch)
+        );
+        const claimedOk = claimed
+            && claimed.points === 8
+            && types('八', 'PENG').length === 1
+            && types('八', 'SAO').length === 0
+            && types('作', 'PENG').length === 1
+            && types('作', 'SAO').length === 0
+            && types('九', 'SAO').length === 1;
+        if (claimedOk) {
+            console.log('✅ Issue #20 reveal keeps exposed PENG 八, claimed PENG 作, concealed SAO 九: Passed');
+        } else {
+            console.error('❌ Issue #20 reveal keeps exposed PENG 八, claimed PENG 作, concealed SAO 九: Failed');
+            console.error('   points', claimed && claimed.points);
+            if (claimed) claimed.partition.forEach(m => console.error('  ', m.type, m.cards.map(c => c.character).join('')));
+            allPassed = false;
+        }
+
+        const selfAssessed = Rules.assessHarmony(hand, exposed, active, { isSelf: true, isSelfDraw: true });
+        const selfZuo = selfAssessed && selfAssessed.partition.find(m => m.cards.every(c => c.character === '作'));
+        const selfBa = selfAssessed && selfAssessed.partition.find(m => m.cards.every(c => c.character === '八'));
+        if (selfZuo && selfZuo.type === 'SAO' && selfBa && selfBa.type === 'PENG') {
+            console.log('✅ Issue #20 self-drawn 作 is SAO while exposed PENG 八 stays PENG: Passed');
+        } else {
+            console.error('❌ Issue #20 self-drawn 作 is SAO while exposed PENG 八 stays PENG: Failed');
+            if (selfAssessed) selfAssessed.partition.forEach(m => console.error('  ', m.type, m.cards.map(c => c.character).join('')));
+            allPassed = false;
+        }
+    }
+
     if (allPassed) {
         console.log("All Rules.canDeclareHarmony tests passed successfully!");
     } else {

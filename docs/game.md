@@ -111,11 +111,12 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 ### KOU Constraints
 - **`[RULE-KOU-MAX-EXPOSED]`**: A player may have at most 2 exposed KOU-equivalent melds. KOU, HALF-DRAGON, and HALF-SNAKE each count as one. A new KOU is not offered once two are already exposed. Completing an exposed KOU into CHI remains allowed.
 - **`[RULE-KOU-NO-DO-OVER]`**: A player cannot form a KOU in a suit if they have previously discarded any card of that suit, passed a drawn card of that suit, or their upstream player has previously passed a card of that suit. The card currently being offered by the upstream player remains eligible for KOU. This restriction does not block CHI or HARMONY.
+- **`[RULE-KOU-NO-BREAK-HAND]`**: A KOU cannot take a hand card that is part of an in-hand 3-of-a-kind or 4-of-a-kind, or a card that is essential to an existing complete CHI in hand. Those cards stay locked, the same as they cannot be discarded. A spare copy that is not essential to the CHI may still form a KOU.
 
 ### Meld Formation
 - **`[RULE-EXPOSED-PRIORITY]`**: When an incoming card can form or grow a meld in both EXPOSED and HAND, upgrading the EXPOSED meld takes priority (e.g., if a player holds an 尔小 KOU in both EXPOSED and HAND, an incoming 生 upgrades the EXPOSED KOU to CHI first).
 - **`[RULE-SUIT-MELD-PRIORITY]`**: Within one suit, cards are grouped in this order: 4-of-a-kind patterns (TWO-DRAGONS-TUSSLING, then DRAGON/SNAKE, then HALF-DRAGON/HALF-SNAKE, then KAI-ZAO/XIA-CE), then 3-of-a-kind (SAO/PENG), then CHI, then KOU. A 3-of-a-kind or 4-of-a-kind is never split across CHI or KOU. A shorter 4-of-a-kind shape is used only when the longer one cannot finish a perfect partition of the whole hand. The meld that contains the completing card is the self-drawn type (SAO, KAI-ZAO, DRAGON, HALF-DRAGON) when this player drew it, and the claimed type (PENG, XIA-CE, SNAKE, HALF-SNAKE) when another player drew or passed it.
-- **`[RULE-MELD-NO-SPLIT]`**: Melds in EXPOSED can grow or merge, but can never be split.
+- **`[RULE-MELD-NO-SPLIT]`**: Melds in EXPOSED can grow or merge, but can never be split. On the winning reveal, an exposed meld keeps the type it was formed with. A concealed 3-of-a-kind is shown as SAO. A 3-of-a-kind completed by another player's card is PENG, even when that card is the card that declares HARMONY.
 - **`[RULE-PENG-IMMUTABLE]`**: An exposed PENG meld cannot be further grown or reformed.
 - **`[RULE-MELD-UPGRADE-KOU]`**: An exposed KOU can grow into a CHI upon claiming the missing third character of the suit.
 - **`[RULE-MELD-UPGRADE-SAO]`**: A 3-of-a-kind in HAND or an exposed SAO (self-drawn 3-of-a-kind in EXPOSED) can grow when its 4th identical card arrives into:

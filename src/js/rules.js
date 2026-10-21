@@ -798,21 +798,21 @@ export class Rules {
             const sCounts = [0, 0, 0];
             allSuiteCardsInHand.forEach(c => sCounts[c.characterIndex]++);
 
-            // Try to find a partner who is redundant in hand first, without breaking a 3-of-a-kind or 4-of-a-kind
-            let partnerChar = others.find(i => sCounts[i] === 2);
-            if (partnerChar === undefined) {
-                partnerChar = others.find(i => sCounts[i] === 1);
-            }
-
-            if (partnerChar !== undefined) {
-                // Redundancy check: if we already have the drawn card and only one of the partner, 
-                // taking KOU is just swapping cards and potentially breaking our hand structure.
-                if (sCounts[card.characterIndex] > 0 && sCounts[partnerChar] === 1) {
-                    // Skip redundant KOU
-                } else {
-                    const partner = allSuiteCardsInHand.find(c => c.characterIndex === partnerChar);
-                    moves.push({ type: 'KOU', cards: [partner] });
-                }
+            // Prefer a spare copy. A 3- or 4-of-a-kind is never a partner, and neither
+            // is a card that is essential to an in-hand CHI ([RULE-KOU-NO-BREAK-HAND]).
+            const partnerChars = [
+                ...others.filter(i => sCounts[i] === 2),
+                ...others.filter(i => sCounts[i] === 1)
+            ];
+            for (const partnerChar of partnerChars) {
+                // Holding this character already, plus only one of the partner, just swaps
+                // cards and breaks a complete CHI. Try the next spare instead.
+                if (sCounts[card.characterIndex] > 0 && sCounts[partnerChar] === 1) continue;
+                const partner = allSuiteCardsInHand.find(c => c.characterIndex === partnerChar);
+                const partnerIndex = hand.indexOf(partner);
+                if (partnerIndex === -1 || !this.canDiscard(hand, partnerIndex)) continue;
+                moves.push({ type: 'KOU', cards: [partner] });
+                break;
             }
         }
 
