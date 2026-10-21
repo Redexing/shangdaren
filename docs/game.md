@@ -139,7 +139,7 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 - **`[RULE-HARMONY-CARD-COUNT]`**: The total card count must equal $16 + \text{exposedQuadsCount}$ (15 in hand + 1 completing card, plus 1 for each exposed 4-of-a-kind quad).
 - **`[RULE-HARMONY-FULL-PARTITION]`**: All cards (HAND + EXPOSED + completing card) must partition completely into valid melds, following `[RULE-SUIT-MELD-PRIORITY]`.
 - **`[RULE-HARMONY-EXACT-2-KOU]`**: The winning partition must contain exactly 2 KOU melds (HALF-DRAGON and HALF-SNAKE count as 1 KOU).
-- **`[RULE-HARMONY-SCORE-THRESHOLD]`**: Total score must be $\ge 10$ Fu. This threshold is waived if every card in the winning set is a Veggie card.
+- **`[RULE-HARMONY-SCORE-THRESHOLD]`**: Total score must be $\ge 10$ Fu. This threshold is waived when every card in the winning set is a Veggie card and the winning partition contains neither a SAO nor a meld that includes a 4-of-a-kind. SAO, XIA-CE, KAI-ZAO, DRAGON, SNAKE, HALF-DRAGON, HALF-SNAKE, and TWO-DRAGONS-TUSSLING each remove the waiver, whether that meld is in HAND or EXPOSED. PENG, CHI, and KOU do not. A hand that loses the waiver must still reach 10 Fu and meet every other Harmony requirement, including at least 1 reward (大). The all-veggie reward itself is unchanged.
 - **`[RULE-HARMONY-MIN-REWARDS]`**: The winning hand must score at least 1 Reward (大). A hand meeting all other criteria with 0 rewards cannot win and must continue playing. If a subsequent mandatory meld leaves no legal discard, BAO-ZI is triggered.
 - **`[RULE-REWARDS-WINNER-ONLY]`**: In a HARMONY win, rewards are credited only to the player declaring HARMONY. In a BAO-ZI game, each of the two winning players receives 1 reward (大). Non-winners receive 0 rewards.
 
