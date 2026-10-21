@@ -2,7 +2,7 @@ import { Game } from '../src/js/game.js';
 import { Player } from '../src/js/player.js';
 import { Card } from '../src/js/card.js';
 import { Rules } from '../src/js/rules.js';
-import { buildScreenshotHarmonyState } from './test_harmony.js';
+import { buildAllVeggieWaiverState, buildScreenshotHarmonyState } from './test_harmony.js';
 
 let nextId = 2000;
 function card(suiteIndex, characterIndex) {
@@ -332,11 +332,22 @@ export function runRewardTests() {
     );
 
     const shot = buildScreenshotHarmonyState();
+    {
+        const reward = Rules.calculateRewards(shot.hand, shot.exposed, shot.activeCard, {});
+        const canDeclare = Rules.canDeclareHarmony(shot.hand, shot.exposed, shot.activeCard, {});
+        assert(
+            '[RULE-HARMONY-SCORE-THRESHOLD] Exposed SAO blocks rewards on the 8-fu all-veggie screenshot',
+            reward.total === 0 && reward.reasons.length === 0 && canDeclare === false,
+            `total=${reward.total} reasons=${(reward.reasons || []).join(', ')} harmony=${canDeclare}`
+        );
+    }
+
+    const waiver = buildAllVeggieWaiverState();
     expectReward(
-        'All-veggie screenshot hand scores 1 reward',
-        shot.hand,
-        shot.exposed,
-        shot.activeCard,
+        'All-veggie CHI/KOU hand still scores the all-veggie reward',
+        waiver.hand,
+        waiver.exposed,
+        waiver.activeCard,
         {},
         1,
         ['all-veggie']
@@ -477,7 +488,7 @@ export function runRewardTests() {
 
     {
         const game = createBareGame();
-        const state = buildScreenshotHarmonyState();
+        const state = buildAllVeggieWaiverState();
         game.players[0].hand = [...state.hand, state.activeCard];
         game.players[0].exposed = state.exposed;
         const lines = [];

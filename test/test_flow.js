@@ -3,7 +3,7 @@ import { Player } from '../src/js/player.js';
 import { Card } from '../src/js/card.js';
 import { Deck } from '../src/js/deck.js';
 import { Rules } from '../src/js/rules.js';
-import { buildScreenshotHarmonyState } from './test_harmony.js';
+import { buildAllVeggieWaiverState } from './test_harmony.js';
 
 function card(id, suiteIndex, characterIndex) {
     return new Card(id, suiteIndex, characterIndex);
@@ -154,7 +154,7 @@ export function runFlowTests() {
             new Player('Bot 2', false),
             new Player('Bot 3', false)
         ];
-        const state = buildScreenshotHarmonyState();
+        const state = buildAllVeggieWaiverState();
         const zuo = state.activeCard; // 作 (suite 6, char 1)
         game.currentPlayerIndex = 0;
         game.activeCard = zuo;
@@ -191,7 +191,7 @@ export function runFlowTests() {
             new Player('Bot 2', false),
             new Player('Bot 3', false)
         ];
-        const state = buildScreenshotHarmonyState();
+        const state = buildAllVeggieWaiverState();
         const zuo = state.activeCard;
         game.currentPlayerIndex = 0;
         game.activeCard = zuo;

@@ -4,6 +4,19 @@ import { ALL_SUITES } from './card.js';
 export const SCORE_THRESHOLD = 10;
 export const HIGH_SCORE_THRESHOLD = 20;
 
+// [RULE-HARMONY-SCORE-THRESHOLD]: these melds remove the all-veggie waiver of the
+// 10 Fu gate. PENG, CHI, and KOU do not. Applies to HAND and EXPOSED alike.
+const VEGGIE_WAIVER_BLOCKING_TYPES = new Set([
+    'SAO',
+    'XIA-CE',
+    'KAI-ZAO',
+    'DRAGON',
+    'SNAKE',
+    'HALF-DRAGON',
+    'HALF-SNAKE',
+    'TWO-DRAGONS-TUSSLING'
+]);
+
 // Four of a kind of these characters is worth two rewards. No other character qualifies.
 export const REWARD_QUAD_CHARACTERS = ['上', '七', '可'];
 
@@ -484,7 +497,7 @@ export class Rules {
         if (!partition) return null;
 
         const points = this.calculateTotalPoints(partition);
-        const meetsScore = points >= SCORE_THRESHOLD || this.isAllVeggie(allCards);
+        const meetsScore = points >= SCORE_THRESHOLD || this.allVeggieWaivesScore(allCards, partition);
         return { allCards, partition, points, meetsScore };
     }
 
@@ -572,6 +585,15 @@ export class Rules {
 
     static isAllVeggie(cards) {
         return Array.isArray(cards) && cards.length > 0 && cards.every(c => !this.isMeat(c.suiteIndex));
+    }
+
+    /**
+     * [RULE-HARMONY-SCORE-THRESHOLD]: all-veggie hands skip the 10 Fu gate unless
+     * the winning partition contains a SAO or a meld with a 4-of-a-kind.
+     */
+    static allVeggieWaivesScore(allCards, partition) {
+        if (!this.isAllVeggie(allCards)) return false;
+        return !(partition || []).some(m => VEGGIE_WAIVER_BLOCKING_TYPES.has(m.type));
     }
 
     static findMeldsInHand(hand) {

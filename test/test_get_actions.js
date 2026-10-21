@@ -2,7 +2,7 @@ import { Card } from '../src/js/card.js';
 import { Rules } from '../src/js/rules.js';
 import { Game } from '../src/js/game.js';
 import { Player } from '../src/js/player.js';
-import { buildScreenshotHarmonyState } from './test_harmony.js';
+import { buildAllVeggieWaiverState, buildScreenshotHarmonyState } from './test_harmony.js';
 
 // Suite 丘乙几. Holding 丘 and seeing 几 can form KOU unless that suit was
 // discarded or passed earlier. Harmony still uses the suit.
@@ -817,14 +817,25 @@ export function runGetActionsTests() {
             expectedActionCardsCount: 0
         },
         (() => {
-            const state = buildScreenshotHarmonyState();
+            const state = buildAllVeggieWaiverState();
             return {
-                name: "All-veggie ready hand offers HARMONY on 作",
+                name: "All-veggie CHI/KOU hand offers HARMONY on 作",
                 hand: state.hand,
                 card: state.activeCard,
                 isSelf: true,
                 exposed: state.exposed,
                 expected: ['CHI', 'HARMONY']
+            };
+        })(),
+        (() => {
+            const state = buildScreenshotHarmonyState();
+            return {
+                name: "[RULE-HARMONY-SCORE-THRESHOLD] Exposed SAO blocks HARMONY on the 8-fu screenshot",
+                hand: state.hand,
+                card: state.activeCard,
+                isSelf: true,
+                exposed: state.exposed,
+                expected: ['CHI']
             };
         })(),
         ...kouNoDoOverCases(suite2Idx)

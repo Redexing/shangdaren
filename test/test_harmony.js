@@ -19,6 +19,7 @@ function trip(suiteIndex, characterIndex) {
  * Reconstructs the GitHub issue #1 screenshot:
  * exposed CHI 可知礼, SAO 小小小, KOU 佳仁, SAO 生生生;
  * hand 十土八九; active 作. All veggie, 8 fu, exactly 2 KOU after taking 作.
+ * Issue #13: the exposed SAO melds remove the all-veggie 10 Fu waiver.
  */
 export function buildScreenshotHarmonyState() {
     fixtureId = 500;
@@ -36,6 +37,27 @@ export function buildScreenshotHarmonyState() {
             { type: 'SAO', cards: trip(4, 2) }
         ],
         activeCard: card(VEG_SUITE_4, 1) // 作
+    };
+}
+
+/**
+ * All-veggie hand under 10 Fu with only CHI and KOU. Taking 作 completes the
+ * exposed 佳仁 KOU. The 10 Fu waiver still applies ([RULE-HARMONY-SCORE-THRESHOLD]).
+ */
+export function buildAllVeggieWaiverState() {
+    fixtureId = 700;
+    return {
+        hand: [
+            card(3, 0), card(3, 1), // 七十 KOU
+            card(5, 0), card(5, 1)  // 八九 KOU
+        ],
+        exposed: [
+            { type: 'CHI', cards: [card(7, 0), card(7, 1), card(7, 2)] }, // 可知礼
+            { type: 'CHI', cards: [card(4, 0), card(4, 1), card(4, 2)] }, // 尔小生
+            { type: 'CHI', cards: [card(5, 0), card(5, 1), card(5, 2)] }, // 八九子
+            { type: 'KOU', cards: [card(6, 0), card(6, 2)] } // 佳仁
+        ],
+        activeCard: card(6, 1) // 作
     };
 }
 
@@ -239,9 +261,73 @@ export function runHarmonyTests() {
             expected: true
         },
         {
-            name: "Issue #1/#2 screenshot: all-veggie 8-fu hand can Harmony on 作",
+            name: "[RULE-HARMONY-SCORE-THRESHOLD] Issue #13: exposed SAO blocks the all-veggie waiver on an 8-fu hand",
             ...buildScreenshotHarmonyState(),
+            expected: false
+        },
+        {
+            name: "[RULE-HARMONY-SCORE-THRESHOLD] All-veggie CHI/KOU hand still waives 10 fu",
+            ...buildAllVeggieWaiverState(),
             expected: true
+        },
+        {
+            name: "[RULE-HARMONY-SCORE-THRESHOLD] Exposed PENG does not block the all-veggie waiver",
+            hand: [
+                ...makeKou(VEG_SUITE_1, 0, 1),
+                ...makeKou(VEG_SUITE_2, 0, 1),
+                ...makeChi(VEG_SUITE_1),
+                ...makeChi(VEG_SUITE_2),
+                ...makeChi(6)
+            ],
+            exposed: [
+                { type: 'PENG', cards: makeTrip(VEG_SUITE_3, 0) }
+            ],
+            activeCard: null,
+            expected: true
+        },
+        {
+            name: "[RULE-HARMONY-SCORE-THRESHOLD] Concealed SAO blocks the all-veggie waiver below 10 fu",
+            hand: [
+                ...makeTrip(VEG_SUITE_1, 0),
+                ...makeKou(VEG_SUITE_2, 0, 1),
+                ...makeKou(VEG_SUITE_3, 0, 1),
+                ...makeChi(VEG_SUITE_2),
+                ...makeChi(VEG_SUITE_3),
+                ...makeChi(6)
+            ],
+            exposed: [],
+            activeCard: null,
+            expected: false
+        },
+        {
+            name: "[RULE-HARMONY-SCORE-THRESHOLD] All-veggie SAO hand at 10 fu can still Harmony",
+            hand: [
+                ...makeTrip(VEG_SUITE_1, 0),
+                ...makeTrip(VEG_SUITE_2, 1),
+                ...makeKou(VEG_SUITE_3, 0, 1),
+                ...makeKou(6, 0, 1),
+                ...makeChi(7)
+            ],
+            exposed: [
+                { type: 'PENG', cards: makeTrip(VEG_SUITE_3, 2) }
+            ],
+            activeCard: null,
+            expected: true
+        },
+        {
+            name: "[RULE-HARMONY-SCORE-THRESHOLD] Exposed veggie XIA-CE below 10 fu cannot use the waiver",
+            hand: [
+                ...makeKou(VEG_SUITE_1, 0, 1),
+                ...makeKou(VEG_SUITE_2, 0, 1),
+                ...makeChi(VEG_SUITE_1),
+                ...makeChi(VEG_SUITE_2),
+                ...makeChi(6)
+            ],
+            exposed: [
+                { type: 'XIA-CE', cards: makeQuad(VEG_SUITE_3, 0) }
+            ],
+            activeCard: null,
+            expected: false
         },
         {
             name: "All-veggie still requires a perfect partition with exactly 2 KOU",
