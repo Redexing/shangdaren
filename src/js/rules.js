@@ -27,6 +27,7 @@ const REWARD_WEIGHTS = {
     'score-20': 1,
     'dragon-snake': 1,
     'two-dragons-tussling': 3,
+    'doubled-up': 1,
     'special-quad': 2,
     'all-meat': 1,
     'big-red': 3,
@@ -509,6 +510,8 @@ export class Rules {
         if (points >= HIGH_SCORE_THRESHOLD) reasons.push('score-20');
         if (partition.some(m => m.type === 'DRAGON' || m.type === 'SNAKE')) reasons.push('dragon-snake');
         if (partition.some(m => m.type === 'TWO-DRAGONS-TUSSLING')) reasons.push('two-dragons-tussling');
+        const doubledUp = this.doubledUpPairs(partition);
+        for (let i = 0; i < doubledUp; i++) reasons.push('doubled-up');
         if (this.hasRewardQuad(allCards)) reasons.push('special-quad');
         if (allCards.length > 0 && allCards.every(c => this.isMeat(c.suiteIndex))) reasons.push('all-meat');
         if (allCards.length > 0 && allCards.every(c => c.isRed)) reasons.push('big-red');
@@ -518,6 +521,30 @@ export class Rules {
 
     static rewardTotal(reasons) {
         return reasons.reduce((sum, reason) => sum + (REWARD_WEIGHTS[reason] || 0), 0);
+    }
+
+    /**
+     * [RULE-REWARD-DOUBLED-UP]: pairs of identical CHI in the winning partition.
+     * CHI of the same suit are identical. HAND and EXPOSED both count.
+     * Two of one suit score 1, three score 1, four score 2.
+     * SUITE is the legacy name for an exposed CHI.
+     */
+    static doubledUpPairs(partition) {
+        const counts = new Map();
+        (partition || []).forEach(meld => {
+            if (!meld || !this.isChiMeld(meld)) return;
+            const suit = meld.cards[0].suiteIndex;
+            counts.set(suit, (counts.get(suit) || 0) + 1);
+        });
+        let pairs = 0;
+        counts.forEach(count => { pairs += Math.floor(count / 2); });
+        return pairs;
+    }
+
+    static isChiMeld(meld) {
+        if (!meld || !meld.cards) return false;
+        if (meld.type !== 'CHI' && meld.type !== 'SUITE' && meld.type !== 'JU') return false;
+        return this.isCompleteSuite(meld.cards);
     }
 
     static hasRewardQuad(cards) {

@@ -61,6 +61,7 @@ A bilingual dictionary of domain and UI terms distilled from `src/js/translation
 |---|---|---|
 | **Points / Fu** | 福 | Standard score unit earned by melds |
 | **Reward / Da** | 大 | Bonus reward unit earned upon winning |
+| **Doubled-up** | 板儿高 | One reward for each pair of identical CHI (same suit), from hand or exposed melds |
 | **BAO-ZI** | 包子 | Loss condition triggered by having no legal card to discard |
 | **Cards** | 牌数 | Total count of cards in a hand or pile |
 | **Current Turn** | 牌权 | Indicator marking the active player |
