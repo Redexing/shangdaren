@@ -59,6 +59,194 @@ export function runRewardTests() {
         );
     }
 
+    // [RULE-REWARD-DOUBLED-UP]: 11 fu mixed hand. Two CHI of 丘乙几 are the only reward.
+    const doubledHand = [
+        ...kou(0, 0, 1),
+        ...kou(3, 0, 1),
+        ...chi(1),
+        ...chi(1),
+        ...chi(2),
+        ...chi(4)
+    ];
+    expectReward(
+        '[RULE-REWARD-DOUBLED-UP] Two identical CHI score 1 reward',
+        doubledHand,
+        [],
+        null,
+        {},
+        1,
+        ['doubled-up']
+    );
+    expectReward(
+        '[RULE-REWARD-DOUBLED-UP] Doubled-up stacks with self-draw',
+        doubledHand,
+        [],
+        null,
+        { isSelfDraw: true },
+        2,
+        ['self-draw', 'doubled-up']
+    );
+
+    expectReward(
+        '[RULE-REWARD-DOUBLED-UP] An exposed CHI and a matching CHI in hand score 1',
+        [
+            ...kou(0, 0, 1),
+            ...kou(3, 0, 1),
+            ...chi(1),
+            ...chi(2),
+            ...chi(4)
+        ],
+        [{ type: 'CHI', cards: chi(1) }],
+        null,
+        {},
+        1,
+        ['doubled-up']
+    );
+
+    expectReward(
+        '[RULE-REWARD-DOUBLED-UP] A legacy exposed SUITE counts as CHI',
+        [
+            ...kou(0, 0, 1),
+            ...kou(3, 0, 1),
+            ...chi(1),
+            ...chi(2),
+            ...chi(4)
+        ],
+        [{ type: 'SUITE', cards: chi(1) }],
+        null,
+        {},
+        1,
+        ['doubled-up']
+    );
+
+    expectReward(
+        '[RULE-REWARD-DOUBLED-UP] Two pairs of identical CHI score 2',
+        [
+            ...kou(0, 0, 1),
+            ...kou(3, 0, 1),
+            ...chi(1),
+            ...chi(1),
+            ...chi(2),
+            ...chi(2)
+        ],
+        [],
+        null,
+        {},
+        2,
+        ['doubled-up', 'doubled-up']
+    );
+
+    // Three locked CHI of one suit: floor(3/2) is one pair. In-hand trips would
+    // not stay CHI; these two are exposed so the partition keeps them.
+    expectReward(
+        '[RULE-REWARD-DOUBLED-UP] Three identical CHI score 1',
+        [
+            ...kou(0, 0, 1),
+            ...kou(3, 0, 1),
+            ...chi(1),
+            ...chi(4)
+        ],
+        [
+            { type: 'CHI', cards: chi(1) },
+            { type: 'CHI', cards: chi(1) }
+        ],
+        null,
+        {},
+        1,
+        ['doubled-up']
+    );
+
+    expectReward(
+        '[RULE-REWARD-DOUBLED-UP] Four identical CHI score 2',
+        [
+            ...kou(0, 0, 1),
+            ...kou(3, 0, 1),
+            ...chi(1),
+            ...chi(1)
+        ],
+        [
+            { type: 'CHI', cards: chi(1) },
+            { type: 'CHI', cards: chi(1) }
+        ],
+        null,
+        {},
+        2,
+        ['doubled-up', 'doubled-up']
+    );
+
+    {
+        const lowHand = [
+            ...kou(0, 0, 1),
+            ...kou(3, 0, 1),
+            ...chi(0),
+            ...chi(2),
+            ...chi(4),
+            ...chi(4)
+        ];
+        const assessed = Rules.assessHarmony(lowHand, [], null, {});
+        const reward = Rules.calculateRewards(lowHand, [], null, {});
+        assert(
+            '[RULE-REWARD-DOUBLED-UP] Doubled-up below 10 fu does not win',
+            assessed && assessed.points === 8 && assessed.meetsScore === false
+                && reward.total === 0 && reward.reasons.length === 0
+                && Rules.canDeclareHarmony(lowHand, [], null, {}) === false,
+            `points=${assessed && assessed.points} meets=${assessed && assessed.meetsScore} total=${reward.total}`
+        );
+    }
+
+    // 3 of each 丘乙几 is three SAO, not three CHI. score-20 is the only reward.
+    expectReward(
+        '[RULE-REWARD-DOUBLED-UP] Three of each character stay SAO and do not score Doubled-up',
+        [
+            ...cards(1, 0, 3),
+            ...cards(1, 1, 3),
+            ...cards(1, 2, 3),
+            ...kou(0, 0, 1),
+            ...kou(3, 0, 1),
+            ...chi(4)
+        ],
+        [],
+        null,
+        {},
+        1,
+        ['score-20']
+    );
+
+    expectReward(
+        '[RULE-REWARD-DOUBLED-UP] Completing a second CHI of the same suit scores 1',
+        [
+            ...kou(0, 0, 1),
+            ...kou(3, 0, 1),
+            ...chi(2),
+            ...chi(1),
+            ...chi(6),
+            card(1, 0),
+            card(1, 1)
+        ],
+        [],
+        card(1, 2),
+        {},
+        1,
+        ['doubled-up']
+    );
+
+    expectReward(
+        '[RULE-REWARD-DOUBLED-UP] All-veggie Doubled-up stacks with the veggie reward',
+        [
+            ...kou(3, 0, 1),
+            ...kou(5, 0, 1),
+            ...chi(3),
+            ...chi(4),
+            ...chi(6),
+            ...chi(6)
+        ],
+        [],
+        null,
+        {},
+        2,
+        ['all-veggie', 'doubled-up']
+    );
+
     // Exactly 10 fu, mixed colors and suits: the 10-fu bonus is the only reward.
     expectReward(
         'Exactly 10 fu scores 1 reward',
@@ -227,6 +415,8 @@ export function runRewardTests() {
         ['score-20']
     );
 
+    // Three distinct meat CHI plus an exposed meat PENG. A repeated CHI would
+    // also be Doubled-up, so this hand keeps all-meat as the only reward.
     expectReward(
         'All meat scores 1 reward',
         [
@@ -234,10 +424,9 @@ export function runRewardTests() {
             ...kou(1, 0, 1),
             ...chi(0),
             ...chi(1),
-            ...chi(2),
             ...chi(2)
         ],
-        [],
+        [{ type: 'PENG', cards: cards(2, 0, 3) }],
         null,
         {},
         1,
@@ -296,6 +485,7 @@ export function runRewardTests() {
         ['score-20', 'all-meat', 'big-red']
     );
 
+    // Distinct CHI plus a black veggie PENG, so Doubled-up is not also scored.
     expectReward(
         'All veggie and all black stack',
         [
@@ -303,10 +493,9 @@ export function runRewardTests() {
             ...kou(5, 0, 1),
             ...chi(3),
             ...chi(5),
-            ...chi(7),
             ...chi(7)
         ],
-        [],
+        [{ type: 'PENG', cards: cards(5, 2, 3) }],
         null,
         {},
         5,
