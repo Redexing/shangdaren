@@ -809,6 +809,126 @@ export function runFlowTests() {
         );
     });
 
+    // Issue #31: a pass closes a suit only when KOU was legally available.
+    withFakeTimers(({ drain }) => {
+        const game = new Game();
+        game.players = [
+            new Player('You', true),
+            new Player('Bot Left', false),
+            new Player('Bot Right', false)
+        ];
+        const heldXiao = card(760, 4, 1);
+        const passedXiao = card(761, 4, 1);
+        const sheng = card(762, 4, 2);
+        game.players[0].hand = [heldXiao];
+
+        // Passing 小 while holding only another 小 cannot form KOU, so it must
+        // not become KOU no-do-over history.
+        game.currentPlayerIndex = 0;
+        game.activeCard = passedXiao;
+        game.activeCardSource = 'DECK';
+        game.pendingActions = game.calculateActions(passedXiao);
+        game.handlePass(0, passedXiao);
+        assert(
+            '[RULE-KOU-NO-DO-OVER] Passing an unusable same-character card does not close its suit',
+            game.players[0].passedCards.some(c => c.id === passedXiao.id)
+                && game.players[0].declinedKouCards.length === 0,
+            `passed=${game.players[0].passedCards.length} kouDeclines=${game.players[0].declinedKouCards.length}`
+        );
+
+        // Ignore that pass flow and reproduce Bot Right's later 生 draw.
+        game.flowToken++;
+        game.currentPlayerIndex = 2;
+        game.activeCard = sheng;
+        game.activeCardSource = 'DECK';
+        game.declinedPlayers.clear();
+        game.pendingActions = game.calculateActions(sheng);
+        const directDrawActions = (game.pendingActions.get(0) || []).map(a => a.type);
+        assert(
+            '[RULE-INTERRUPT-PRIORITY] Another player directly drawing 生 does not offer KOU',
+            !directDrawActions.includes('KOU') && directDrawActions.includes('PASS'),
+            `actions=${directDrawActions.join(',')}`
+        );
+
+        // Once Bot Right passes 生 downstream, the human can KOU it with 小.
+        game.handlePass(2, sheng);
+        drain(2);
+        const passedCardActions = (game.pendingActions.get(0) || []).map(a => a.type);
+        assert(
+            'Issue #31: passed 生 offers KOU after the earlier unusable 小 pass',
+            game.currentPlayerIndex === 0
+                && passedCardActions.includes('KOU')
+                && passedCardActions.includes('PASS'),
+            `current=${game.currentPlayerIndex} actions=${passedCardActions.join(',')}`
+        );
+        game.flowToken++;
+    });
+
+    withFakeTimers(() => {
+        const game = new Game();
+        game.players = [
+            new Player('You', true),
+            new Player('Bot Left', false),
+            new Player('Bot Right', false)
+        ];
+        const er = card(763, 4, 0);
+        const xiao = card(764, 4, 1);
+        const sheng = card(765, 4, 2);
+        game.players[0].hand = [er];
+        game.currentPlayerIndex = 0;
+        game.activeCard = xiao;
+        game.activeCardSource = 'DECK';
+        game.pendingActions = game.calculateActions(xiao);
+        game.handlePass(0, xiao);
+
+        game.flowToken++;
+        game.activeCard = sheng;
+        game.activeCardSource = 'DECK';
+        game.declinedPlayers.clear();
+        const laterActions = (game.calculateActions(sheng).get(0) || []).map(a => a.type);
+        assert(
+            '[RULE-KOU-NO-DO-OVER] Declining a legally available KOU still closes the suit',
+            game.players[0].declinedKouCards.some(c => c.id === xiao.id)
+                && !laterActions.includes('KOU'),
+            `kouDeclines=${game.players[0].declinedKouCards.length} actions=${laterActions.join(',')}`
+        );
+    });
+
+    withFakeTimers(({ drain }) => {
+        const game = new Game();
+        game.players = [
+            new Player('You', true),
+            new Player('Bot Left', false),
+            new Player('Bot Right', false)
+        ];
+        const er = card(766, 4, 0);
+        const xiao = card(767, 4, 1);
+        const sheng = card(768, 4, 2);
+        game.players[0].hand = [er];
+
+        // Bot Right passes 小 to the human, who has a legal KOU but declines it.
+        game.currentPlayerIndex = 2;
+        game.activeCard = xiao;
+        game.activeCardSource = 'DECK';
+        game.pendingActions = game.calculateActions(xiao);
+        game.handlePass(2, xiao);
+        drain(1);
+        game.handlePass(0, xiao);
+        game.flowToken++;
+
+        game.currentPlayerIndex = 0;
+        game.activeCard = sheng;
+        game.activeCardSource = 'DECK';
+        game.declinedPlayers.clear();
+        const laterActions = (game.calculateActions(sheng).get(0) || []).map(a => a.type);
+        assert(
+            '[RULE-KOU-NO-DO-OVER] Declining an upstream passed card with KOU available closes the suit',
+            game.players[0].declinedKouCards.some(c => c.id === xiao.id)
+                && !laterActions.includes('KOU'),
+            `kouDeclines=${game.players[0].declinedKouCards.length} actions=${laterActions.join(',')}`
+        );
+    });
+
     // Issue #20 seed 4088527162: Bot 1 is dealt 可知礼礼礼. The passed 可 must not become a KOU.
     withFakeTimers(({ drain }) => {
         const game = new Game();
