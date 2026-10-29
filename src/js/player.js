@@ -7,6 +7,7 @@ export class Player {
         this.exposed = []; // Array of Meld Objects
         this.discards = []; // Array of Cards (From hand)
         this.passedCards = []; // Array of Cards (Drawn but immediately passed)
+        this.declinedKouCards = []; // Cards passed when KOU was a legal option
 
         this.wins = 0;
         this.totalGames = 0;
@@ -98,6 +99,12 @@ export class Player {
         const idx = this.passedCards.findIndex(c => c.id === card.id);
         if (idx !== -1) {
             this.passedCards.splice(idx, 1);
+        }
+    }
+
+    recordKouDecline(card) {
+        if (!this.declinedKouCards.some(c => c.id === card.id)) {
+            this.declinedKouCards.push(card);
         }
     }
 

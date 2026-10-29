@@ -5,7 +5,7 @@ import { Player } from '../src/js/player.js';
 import { buildAllVeggieWaiverState, buildScreenshotHarmonyState } from './test_harmony.js';
 
 // Suite 丘乙几. Holding 丘 and seeing 几 can form KOU unless that suit was
-// discarded or passed earlier. Harmony still uses the suit.
+// discarded, or an earlier legal KOU was declined. Harmony still uses the suit.
 function kouNoDoOverCases(suiteIdx) {
     const qiu = new Card(200, suiteIdx, 0);
     const yi = new Card(201, suiteIdx, 1);
@@ -26,7 +26,7 @@ function kouNoDoOverCases(suiteIdx) {
 
     return [
         {
-            name: "KOU allowed when the suit was never discarded or passed",
+            name: "KOU allowed when the suit was never discarded or declined",
             hand: [qiu],
             card: ji,
             isSelf: true,
@@ -57,36 +57,20 @@ function kouNoDoOverCases(suiteIdx) {
             expected: ['PASS']
         },
         {
-            name: "No KOU after passing a card of the suit you drew",
+            name: "No KOU after declining an available KOU in the suit",
             hand: [qiu],
             card: ji,
             isSelf: true,
-            options: { passedCards: [otherYi] },
+            options: { declinedKouCards: [otherYi] },
             expected: ['PASS']
         },
         {
-            name: "No KOU after upstream already passed 乙",
+            name: "No KOU after declining upstream 乙 when KOU was available",
             hand: [qiu],
             card: ji,
             isSelf: true,
-            options: { upstreamPassedCards: [yi] },
+            options: { declinedKouCards: [yi] },
             expected: ['PASS']
-        },
-        {
-            name: "No KOU after upstream already passed 几",
-            hand: [qiu],
-            card: ji,
-            isSelf: true,
-            options: { upstreamPassedCards: [otherJi] },
-            expected: ['PASS']
-        },
-        {
-            name: "Current upstream pass can still form KOU",
-            hand: [qiu],
-            card: ji,
-            isSelf: true,
-            options: { upstreamPassedCards: [ji] },
-            expected: ['KOU', 'PASS']
         },
         {
             name: "A pass or discard from another suit does not close KOU",
@@ -94,7 +78,7 @@ function kouNoDoOverCases(suiteIdx) {
             card: ji,
             isSelf: true,
             discards: [otherSuit],
-            options: { passedCards: [new Card(207, 3, 1)], upstreamPassedCards: [new Card(208, 5, 2)] },
+            options: { declinedKouCards: [new Card(207, 3, 1)] },
             expected: ['KOU', 'PASS']
         },
         {
@@ -103,7 +87,6 @@ function kouNoDoOverCases(suiteIdx) {
             card: ji,
             isSelf: true,
             discards: [otherJi],
-            options: { upstreamPassedCards: [otherYi] },
             expected: ['CHI']
         },
         {
@@ -112,7 +95,7 @@ function kouNoDoOverCases(suiteIdx) {
             card: ji,
             isSelf: true,
             discards: [otherYi],
-            options: { isSelfDraw: true, upstreamPassedCards: [otherJi] },
+            options: { isSelfDraw: true, declinedKouCards: [otherJi] },
             expected: ['HARMONY', 'PASS']
         }
     ];
@@ -146,21 +129,20 @@ function runKouNoDoOverGameTests() {
 
     const cases = [
         {
-            name: "Upstream pass still in the pass pile blocks KOU",
+            name: "Physical upstream pass alone does not block KOU",
             setup(game) {
                 game.players[2].addToDiscards(yi, true);
-            },
-            card: ji,
-            expected: ['PASS']
-        },
-        {
-            name: "Claiming that pass removes it and reopens KOU",
-            setup(game) {
-                game.players[2].addToDiscards(yi, true);
-                game.players[2].removePassedCard(yi);
             },
             card: ji,
             expected: ['KOU', 'PASS']
+        },
+        {
+            name: "Recorded legal KOU decline blocks the suit",
+            setup(game) {
+                game.players[0].recordKouDecline(yi);
+            },
+            card: ji,
+            expected: ['PASS']
         },
         {
             name: "Game still offers KOU for the card upstream is passing now",
@@ -172,9 +154,9 @@ function runKouNoDoOverGameTests() {
             expected: ['KOU', 'PASS']
         },
         {
-            name: "Game hides KOU after you passed 几 earlier",
+            name: "Game hides KOU after you declined an available KOU earlier",
             setup(game) {
-                game.players[0].addToDiscards(earlierJi, true);
+                game.players[0].recordKouDecline(earlierJi);
             },
             card: ji,
             expected: ['PASS']

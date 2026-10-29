@@ -645,18 +645,15 @@ export class Rules {
 
     /**
      * No-do-over for KOU. A suit stays closed for the rest of the game when
-     * this player has discarded any card of that suit, passed a card of that
-     * suit they drew, or their upstream player has already passed a different
-     * card of that suit. The card being offered right now is not a prior pass.
-     * Harmony can still use the suit; this only suppresses the KOU action.
+     * this player has discarded any card of that suit, or previously declined
+     * a card when KOU was a legal option. A pass that could not form KOU does
+     * not close the suit. Harmony can still use a closed suit.
      */
-    static isKouClosed(card, discards = [], ownPasses = [], upstreamPasses = []) {
+    static isKouClosed(card, discards = [], declinedKouCards = []) {
         if (!card) return false;
         const sameSuit = (c) => c && c.suiteIndex === card.suiteIndex;
-        const priorPass = (c) => sameSuit(c) && c.id !== card.id;
         return (discards || []).some(sameSuit)
-            || (ownPasses || []).some(priorPass)
-            || (upstreamPasses || []).some(priorPass);
+            || (declinedKouCards || []).some(sameSuit);
     }
 
     static getActions(hand, card, isSelf, exposed = [], discards = [], options = {}) {
@@ -668,9 +665,8 @@ export class Rules {
         const availSuiteInHand = suiteInHand.filter(c => hand.filter(hc => hc.typeId === c.typeId).length < 3);
         const uniqueInSuite = Array.from(new Set(availSuiteInHand.map(c => c.characterIndex)));
 
-        const ownPasses = options.passedCards || [];
-        const upstreamPasses = options.upstreamPassedCards || [];
-        const suiteBroken = this.isKouClosed(card, discards, ownPasses, upstreamPasses);
+        const declinedKouCards = options.declinedKouCards || [];
+        const suiteBroken = this.isKouClosed(card, discards, declinedKouCards);
 
         const saoMatch = exposed.find(m => m.type === 'SAO' && m.cards[0].typeId === card.typeId);
         const halfMeldInSuite = exposed.find(

@@ -176,17 +176,14 @@ export class Game {
         return allActions;
     }
 
-    // Own passes and the upstream player's earlier passes close a suit for KOU.
-    // The card currently offered is excluded inside Rules.isKouClosed.
+    // Only cards this player declined while KOU was legally available close a
+    // suit. The physical PASSED piles alone do not preserve that eligibility.
     kouHistoryOptions(playerIndex, isSelfDraw) {
-        const upstream = (playerIndex + 2) % 3;
         const player = this.players[playerIndex];
-        const upstreamPlayer = this.players[upstream];
         return {
             isSelf: playerIndex === this.currentPlayerIndex,
             isSelfDraw,
-            passedCards: player.passedCards || [],
-            upstreamPassedCards: upstreamPlayer.passedCards || []
+            declinedKouCards: player.declinedKouCards || []
         };
     }
 
@@ -358,6 +355,11 @@ export class Game {
         this.declinedPlayers.add(playerIndex);
 
         if (isDrawer) {
+            const offeredActions = this.pendingActions.get(playerIndex) || [];
+            if (offeredActions.some(action => action.type === 'KOU')) {
+                p.recordKouDecline(card);
+            }
+
             if (this.activeCardSource === 'DECK') {
                 // Case 1: Drawer passes a freshly drawn card
                 this.log(`${p.name} PASS (Passed) ${card.toString()}`);
