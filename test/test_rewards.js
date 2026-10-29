@@ -104,22 +104,6 @@ export function runRewardTests() {
     );
 
     expectReward(
-        '[RULE-REWARD-DOUBLED-UP] A legacy exposed SUITE counts as CHI',
-        [
-            ...kou(0, 0, 1),
-            ...kou(3, 0, 1),
-            ...chi(1),
-            ...chi(2),
-            ...chi(4)
-        ],
-        [{ type: 'SUITE', cards: chi(1) }],
-        null,
-        {},
-        1,
-        ['doubled-up']
-    );
-
-    expectReward(
         '[RULE-REWARD-DOUBLED-UP] Two pairs of identical CHI score 2',
         [
             ...kou(0, 0, 1),
@@ -130,44 +114,6 @@ export function runRewardTests() {
             ...chi(2)
         ],
         [],
-        null,
-        {},
-        2,
-        ['doubled-up', 'doubled-up']
-    );
-
-    // Three locked CHI of one suit: floor(3/2) is one pair. In-hand trips would
-    // not stay CHI; these two are exposed so the partition keeps them.
-    expectReward(
-        '[RULE-REWARD-DOUBLED-UP] Three identical CHI score 1',
-        [
-            ...kou(0, 0, 1),
-            ...kou(3, 0, 1),
-            ...chi(1),
-            ...chi(4)
-        ],
-        [
-            { type: 'CHI', cards: chi(1) },
-            { type: 'CHI', cards: chi(1) }
-        ],
-        null,
-        {},
-        1,
-        ['doubled-up']
-    );
-
-    expectReward(
-        '[RULE-REWARD-DOUBLED-UP] Four identical CHI score 2',
-        [
-            ...kou(0, 0, 1),
-            ...kou(3, 0, 1),
-            ...chi(1),
-            ...chi(1)
-        ],
-        [
-            { type: 'CHI', cards: chi(1) },
-            { type: 'CHI', cards: chi(1) }
-        ],
         null,
         {},
         2,

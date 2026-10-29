@@ -524,27 +524,19 @@ export class Rules {
     }
 
     /**
-     * [RULE-REWARD-DOUBLED-UP]: pairs of identical CHI in the winning partition.
+     * [RULE-REWARD-DOUBLED-UP]: one reward per pair of identical CHI.
      * CHI of the same suit are identical. HAND and EXPOSED both count.
-     * Two of one suit score 1, three score 1, four score 2.
-     * SUITE is the legacy name for an exposed CHI.
      */
     static doubledUpPairs(partition) {
         const counts = new Map();
         (partition || []).forEach(meld => {
-            if (!meld || !this.isChiMeld(meld)) return;
+            if (!meld || meld.type !== 'CHI' || !this.isCompleteSuite(meld.cards)) return;
             const suit = meld.cards[0].suiteIndex;
             counts.set(suit, (counts.get(suit) || 0) + 1);
         });
         let pairs = 0;
         counts.forEach(count => { pairs += Math.floor(count / 2); });
         return pairs;
-    }
-
-    static isChiMeld(meld) {
-        if (!meld || !meld.cards) return false;
-        if (meld.type !== 'CHI' && meld.type !== 'SUITE' && meld.type !== 'JU') return false;
-        return this.isCompleteSuite(meld.cards);
     }
 
     static hasRewardQuad(cards) {
