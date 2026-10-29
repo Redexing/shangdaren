@@ -246,6 +246,56 @@ export function runFlowTests() {
         );
     });
 
+    withFakeTimers(({ drain }) => {
+        const game = new Game();
+        game.players = [
+            new Player('You', true),
+            new Player('Bot Left', false),
+            new Player('Bot Right', false)
+        ];
+        const shang = card(330, 0, 0);
+        const da = card(331, 0, 1);
+        const spare = card(332, 1, 0); // 丘
+        const pengCards = [card(333, 0, 2), card(334, 0, 2), card(335, 0, 2)];
+        const drawnRen = card(336, 0, 2);
+        game.players[0].hand = [shang, da, spare];
+        game.players[0].exposed = [{ type: 'PENG', cards: pengCards }];
+        game.currentPlayerIndex = 0;
+        game.activeCard = drawnRen;
+        game.activeCardSource = 'DECK';
+
+        game.handleDrawActions(drawnRen);
+        const actions = game.pendingActions.get(0) || [];
+        const chi = actions.find(action => action.type === 'CHI');
+        assert(
+            '[RULE-PENG-IMMUTABLE] Issue #34 offers mandatory CHI and leaves the PENG of 人',
+            game.turnPhase === 'DECISION_WAIT'
+                && actions.length === 1
+                && chi
+                && !chi.meldRef
+                && chi.cards.length === 2
+                && chi.cards.some(c => c.id === shang.id)
+                && chi.cards.some(c => c.id === da.id)
+                && !actions.some(action => ['DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'KOU', 'PASS'].includes(action.type)),
+            `phase=${game.turnPhase} actions=${actions.map(action => action.type).join(',')}`
+        );
+
+        game.confirmHumanMeld(chi, game.players[0].hand.findIndex(c => c.id === spare.id));
+        drain();
+        const peng = game.players[0].exposed.find(meld => meld.type === 'PENG');
+        const formedChi = game.players[0].exposed.find(meld => meld.type === 'CHI');
+        assert(
+            '[RULE-PENG-IMMUTABLE] Issue #34 CHI is a new meld and the PENG of 人 is unchanged',
+            peng
+                && peng.cards.map(c => c.id).join(',') === '333,334,335'
+                && formedChi
+                && formedChi.cards.map(c => c.characterIndex).sort().join(',') === '0,1,2'
+                && formedChi.cards.some(c => c.id === drawnRen.id)
+                && game.players[0].discards.some(c => c.id === spare.id),
+            `exposed=${game.players[0].exposed.map(m => m.type + ':' + m.cards.map(c => c.character).join('')).join('|')}`
+        );
+    });
+
     withFakeTimers(() => {
         // Case D: No interrupts -> Drawer CHI executes
         const game = new Game();

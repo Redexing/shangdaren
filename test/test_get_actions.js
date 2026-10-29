@@ -339,6 +339,84 @@ export function runGetActionsTests() {
             expected: ['PASS']
         },
         {
+            name: "[RULE-PENG-IMMUTABLE] Self-drawn 人 with exposed PENG of 人 and 上大 in hand is mandatory CHI",
+            hand: [
+                new Card(140, 0, 0), // 上
+                new Card(141, 0, 1), // 大
+                new Card(142, 1, 0)  // 丘, spare
+            ],
+            card: new Card(143, 0, 2), // 人
+            isSelf: true,
+            exposed: [{
+                type: 'PENG',
+                cards: [
+                    new Card(144, 0, 2),
+                    new Card(145, 0, 2),
+                    new Card(146, 0, 2)
+                ]
+            }],
+            expected: ['CHI'],
+            expectedActionCardsCount: 2
+        },
+        {
+            name: "[RULE-PENG-IMMUTABLE] Passed 人 with exposed PENG of 人 and 上大 in hand is mandatory CHI",
+            hand: [
+                new Card(147, 0, 0), // 上
+                new Card(148, 0, 1)  // 大
+            ],
+            card: new Card(149, 0, 2), // 人
+            isSelf: false,
+            exposed: [{
+                type: 'PENG',
+                cards: [
+                    new Card(150, 0, 2),
+                    new Card(151, 0, 2),
+                    new Card(152, 0, 2)
+                ]
+            }],
+            expected: ['CHI'],
+            expectedActionCardsCount: 2
+        },
+        {
+            name: "[RULE-PENG-IMMUTABLE] Exposed PENG of 人 does not CHI when hand already holds 上大人",
+            hand: [
+                new Card(153, 0, 0), // 上
+                new Card(154, 0, 1), // 大
+                new Card(155, 0, 2)  // 人
+            ],
+            card: new Card(156, 0, 2), // 人
+            isSelf: true,
+            exposed: [{
+                type: 'PENG',
+                cards: [
+                    new Card(157, 0, 2),
+                    new Card(158, 0, 2),
+                    new Card(159, 0, 2)
+                ]
+            }],
+            expected: ['PASS']
+        },
+        {
+            name: "[RULE-MELD-NO-SPLIT] Exposed KAI-ZAO of 人 leaves a hand CHI of 上大+人 mandatory",
+            hand: [
+                new Card(160, 0, 0), // 上
+                new Card(161, 0, 1)  // 大
+            ],
+            card: new Card(162, 0, 2), // 人
+            isSelf: true,
+            exposed: [{
+                type: 'KAI-ZAO',
+                cards: [
+                    new Card(163, 0, 2),
+                    new Card(164, 0, 2),
+                    new Card(165, 0, 2),
+                    new Card(166, 0, 2)
+                ]
+            }],
+            expected: ['CHI'],
+            expectedActionCardsCount: 2
+        },
+        {
             name: "CHI higher priority than forming second KOU",
             hand: [new Card(13, suite2Idx, 1)], // 乙
             card: new Card(12, suite2Idx, 0), // 丘

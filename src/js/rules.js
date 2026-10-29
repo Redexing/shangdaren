@@ -806,10 +806,12 @@ export class Rules {
             const c2 = hand.find(c => c.suiteIndex === card.suiteIndex && c.characterIndex === needed[1]);
 
             if (!upgradedExposedKou && c1 && c2) {
-                // Determine if this CHI forms a "New" suite or just redundant
+                // A new CHI is judged from HAND only. Exposed melds are already
+                // formed ([RULE-MELD-NO-SPLIT], [RULE-PENG-IMMUTABLE]). Counting
+                // them made a PENG of 人 look like a finished 上大人, so drawing
+                // 人 with 上 and 大 in hand offered no CHI.
                 const counts = [0, 0, 0];
-                const allSuiteCards = [...hand, ...exposed.flatMap(m => m.cards)].filter(c => c.suiteIndex === card.suiteIndex);
-                allSuiteCards.forEach(c => counts[c.characterIndex]++);
+                allSuiteCardsInHand.forEach(c => counts[c.characterIndex]++);
                 const oldSuites = Math.min(counts[0], counts[1], counts[2]);
                 const nextCounts = [...counts];
                 nextCounts[card.characterIndex]++;
