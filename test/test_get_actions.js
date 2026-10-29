@@ -4,6 +4,27 @@ import { Game } from '../src/js/game.js';
 import { Player } from '../src/js/player.js';
 import { buildAllVeggieWaiverState, buildScreenshotHarmonyState } from './test_harmony.js';
 
+function chiBeforeKouOverlapCases(suiteIndex) {
+    let id = 1000;
+    const cases = [];
+    for (let duplicateChar = 0; duplicateChar < 3; duplicateChar++) {
+        for (let incomingChar = 0; incomingChar < 3; incomingChar++) {
+            if (incomingChar === duplicateChar) continue;
+            const hand = [0, 1, 2].map(charIndex => new Card(id++, suiteIndex, charIndex));
+            hand.push(new Card(id++, suiteIndex, duplicateChar));
+            cases.push({
+                name: `[RULE-SUIT-MELD-PRIORITY] CHI precedes KOU with duplicate ${duplicateChar} and incoming ${incomingChar}`,
+                hand,
+                card: new Card(id++, suiteIndex, incomingChar),
+                isSelf: true,
+                expected: ['CHI'],
+                expectedActionCardsCount: 2
+            });
+        }
+    }
+    return cases;
+}
+
 // Suite 丘乙几. Holding 丘 and seeing 几 can form KOU unless that suit was
 // discarded or passed earlier. Harmony still uses the suit.
 function kouNoDoOverCases(suiteIdx) {
@@ -218,7 +239,7 @@ export function runGetActionsTests() {
 
     const testCases = [
         {
-            name: "Optional KOU when hand already has a suit",
+            name: "CHI takes priority over KOU when four same-suit cards overlap",
             hand: [
                 new Card(0, suite5Idx, 0), // 尔
                 new Card(1, suite5Idx, 1), // 小
@@ -227,7 +248,7 @@ export function runGetActionsTests() {
             ],
             card: new Card(10, suite5Idx, 0), // 尔
             isSelf: true,
-            expected: ['KOU', 'PASS']
+            expected: ['CHI']
         },
         {
             name: "Mandatory CHI when hand can complete a suite",
@@ -249,6 +270,7 @@ export function runGetActionsTests() {
             isSelf: false,
             expected: ['CHI']
         },
+        ...chiBeforeKouOverlapCases(0),
         {
             name: "Mandatory SAO when hand has a pair and self-draws the third",
             hand: [
@@ -498,7 +520,7 @@ export function runGetActionsTests() {
             expected: ['PASS']
         },
         {
-            name: "[RULE-KOU-NO-BREAK-HAND] Spare 礼 may KOU while 可知礼 stays intact",
+            name: "[RULE-SUIT-MELD-PRIORITY] Spare 礼 overlap still exposes CHI before KOU",
             hand: [
                 new Card(92, suite8Idx, 0), // 可
                 new Card(93, suite8Idx, 1), // 知
@@ -507,8 +529,7 @@ export function runGetActionsTests() {
             ],
             card: new Card(96, suite8Idx, 0), // 可
             isSelf: true,
-            expected: ['KOU', 'PASS'],
-            expectedKouPartnerId: 94
+            expected: ['CHI']
         },
         {
             name: "Prohibit breaking 3-of-a-kind (小x3) in hand to form KOU with 生",

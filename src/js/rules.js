@@ -819,14 +819,20 @@ export class Rules {
                 nextCounts[card.characterIndex]++;
                 const newSuites = Math.min(nextCounts[0], nextCounts[1], nextCounts[2]);
 
-                if (newSuites > oldSuites) {
-                    // Rule check: No breaking 3-of-a-kind or 4-of-a-kind to form a CHI
-                    const c1HandCount = hand.filter(c => c.typeId === c1.typeId).length;
-                    const c2HandCount = hand.filter(c => c.typeId === c2.typeId).length;
+                // If exposing this CHI leaves a KOU in hand, CHI takes priority
+                // even when the hand already contained one complete suite.
+                const usedIds = new Set([c1.id, c2.id]);
+                const remaining = allSuiteCardsInHand.filter(c => !usedIds.has(c.id));
+                const chiBeforeKou = allSuiteCardsInHand.length === 4
+                    && remaining.length === 2
+                    && new Set(remaining.map(c => c.characterIndex)).size === 2;
 
-                    if (c1HandCount < 3 && c2HandCount < 3) {
-                        moves.push({ type: 'CHI', cards: [c1, c2] });
-                    }
+                // Rule check: No breaking 3-of-a-kind or 4-of-a-kind to form a CHI
+                const c1HandCount = hand.filter(c => c.typeId === c1.typeId).length;
+                const c2HandCount = hand.filter(c => c.typeId === c2.typeId).length;
+
+                if ((newSuites > oldSuites || chiBeforeKou) && c1HandCount < 3 && c2HandCount < 3) {
+                    moves.push({ type: 'CHI', cards: [c1, c2] });
                 }
             }
         }

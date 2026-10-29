@@ -274,6 +274,40 @@ export function runFlowTests() {
         );
     });
 
+    withFakeTimers(() => {
+        const game = new Game();
+        game.players = [
+            new Player('You', true),
+            new Player('Bot Left', false),
+            new Player('Bot Right', false)
+        ];
+        const shang = card(336, 0, 0);
+        const da1 = card(337, 0, 1);
+        const da2 = card(338, 0, 1);
+        const heldRen = card(339, 0, 2);
+        const incomingRen = card(340, 0, 2);
+        game.players[0].hand = [shang, da1, da2, heldRen];
+        game.currentPlayerIndex = 0;
+        game.activeCard = incomingRen;
+        game.activeCardSource = 'DECK';
+
+        game.handleDrawActions(incomingRen);
+        const actions = game.pendingActions.get(0) || [];
+        const chi = actions.find(action => action.type === 'CHI');
+
+        assert(
+            '[RULE-SUIT-MELD-PRIORITY] Issue #9 offers mandatory CHI instead of KOU for 上大大人 + 人',
+            game.turnPhase === 'DECISION_WAIT'
+                && actions.length === 1
+                && chi
+                && chi.cards.length === 2
+                && chi.cards.some(c => c.id === shang.id)
+                && chi.cards.some(c => c.id === da1.id || c.id === da2.id)
+                && !actions.some(action => action.type === 'KOU' || action.type === 'PASS'),
+            `phase=${game.turnPhase} actions=${actions.map(action => action.type).join(',')}`
+        );
+    });
+
     // [RULE-DISCARD-EXEMPT-QUADS]: Forming XIA-CE or KAI-ZAO does NOT require a discard
     withFakeTimers(({ drain }) => {
         const game = new Game();
