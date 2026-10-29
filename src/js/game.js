@@ -816,40 +816,9 @@ export class Game {
 
         this.highlightedCards = []; // Reset highlight
 
-        // Check KOU completion (mandatory)
-        const nextIdx = (this.currentPlayerIndex + 1) % 3;
-        const nextPlayer = this.players[nextIdx];
-
-        // Existing KOU completion logic...
-        const kous = nextPlayer.exposed.filter(m => m.type === 'KOU');
-        let kouMatch = null;
-        for (const k of kous) {
-            if (Rules.canCompleteKou(k.cards, card)) {
-                kouMatch = k;
-                break;
-            }
-        }
-
-        if (kouMatch) {
-            this.log(`${nextPlayer.name} has KOU match! Must take ${card.toString()}`);
-            kouMatch.type = 'SUITE';
-            kouMatch.cards.push(card);
-
-            this.currentPlayerIndex = nextIdx;
-            this.activeCard = null;
-            this.turnPhase = 'DISCARD_WAIT';
-            this.emit(EVENTS.STATE_CHANGE);
-
-            if (!nextPlayer.isHuman || this.isWatchMode) this.scheduleFlow(this.autoPlayDelay, () => this.botDiscard(nextPlayer));
-            return;
-        }
-
-        // If no mandatory interrupt, allow next player to FORM KOU (Optional) from discard?
-        // For simplicity: We only allow forming KOU from Drawn card in this version.
-        // Or implement optional interrupt here if needed.
-
-        // Turn passes to next player
-        this.currentPlayerIndex = nextIdx;
+        // A card discarded from hand is not offered for CHI. A fresh draw the
+        // player passes is offered to the next player in handlePass.
+        this.currentPlayerIndex = (this.currentPlayerIndex + 1) % 3;
 
         // Immediately clear center-discard div so the discarded card only shows in player's pile
         this.activeCard = null;

@@ -151,7 +151,6 @@ export class Rules {
             switch (meld.type) {
                 case 'CHI':
                 case 'JU':
-                case 'SUITE':
                     if (isMeat) total += 3;
                     break;
                 case 'KOU':

@@ -44,7 +44,7 @@ function withFakeTimers(run) {
 
 function meldIsLegal(meld) {
     const suits = new Set(meld.cards.map(c => c.suiteIndex));
-    if (meld.type === 'CHI' || meld.type === 'SUITE') {
+    if (meld.type === 'CHI') {
         return meld.cards.length === 3
             && suits.size === 1
             && new Set(meld.cards.map(c => c.characterIndex)).size === 3;
@@ -324,6 +324,36 @@ export function runFlowTests() {
                 && game.players[0].discards.length === 0
                 && game.players[0].hand.length === 1 && game.players[0].hand[0].id === hSpare.id,
             `exposed=${game.players[0].exposed.length} hand=${game.players[0].hand.length} discards=${game.players[0].discards.length}`
+        );
+    });
+
+    // A discard from hand must not complete the next player's exposed KOU.
+    withFakeTimers(() => {
+        const game = new Game();
+        game.players = [
+            new Player('You', true),
+            new Player('Bot Left', false),
+            new Player('Bot Right', false)
+        ];
+        const ren = card(510, 0, 2); // 人 discarded from hand
+        const shang = card(511, 0, 0);
+        const da = card(512, 0, 1);
+        const kou = { type: 'KOU', cards: [shang, da] };
+        game.currentPlayerIndex = 0;
+        game.drawnCardId = null;
+        game.players[0].hand = [ren];
+        game.players[1].exposed = [kou];
+
+        game.finalizeDiscard(game.players[0], ren);
+
+        assert(
+            'A discard does not complete the next player KOU',
+            kou.type === 'KOU'
+                && kou.cards.length === 2
+                && game.players[0].discards.length === 1
+                && game.players[0].discards[0].id === ren.id
+                && game.players.every(p => p.exposed.every(m => m.type !== 'SUITE')),
+            `kou=${kou.type}/${kou.cards.length} discards=${game.players[0].discards.length}`
         );
     });
 
