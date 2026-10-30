@@ -10,6 +10,7 @@ export const TRANSLATIONS = {
         'HALF-DRAGON': '半龙',
         'SNAKE': '蛇',
         'HALF-SNAKE': '半蛇',
+        'TWO-DRAGONS-TUSSLING': '双龙抱柱',
         'HARMONY': '和',
         'Bot': '机器人',
         'Points': '福',
@@ -48,7 +49,8 @@ export const TRANSLATIONS = {
         'About': '关于',
         'How-to': '玩法',
         'Versions': '版本',
-        'Win %': '胜场率'
+        'Win %': '胜场率',
+        'Reward': '大'
     },
     'en': {
         'KOU': 'KOU',
@@ -61,6 +63,7 @@ export const TRANSLATIONS = {
         'HALF-DRAGON': 'HALF-DRAGON',
         'SNAKE': 'SNAKE',
         'HALF-SNAKE': 'HALF-SNAKE',
+        'TWO-DRAGONS-TUSSLING': 'TWO-DRAGONS-TUSSLING',
         'HARMONY': 'HARMONY',
         'Bot': 'Bot',
         'Points': 'Points',
@@ -99,6 +102,7 @@ export const TRANSLATIONS = {
         'About': 'About',
         'How-to': 'How-to',
         'Versions': 'Versions',
-        'Win %': 'Win %'
+        'Win %': 'Win %',
+        'Reward': 'Reward'
     }
 };
