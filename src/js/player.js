@@ -7,18 +7,22 @@ export class Player {
         this.exposed = []; // Array of Meld Objects
         this.discards = []; // Array of Cards (From hand)
         this.passedCards = []; // Array of Cards (Drawn but immediately passed)
+        this.declinedKouCards = []; // Cards passed when KOU was a legal option
 
         this.wins = 0;
         this.totalGames = 0;
+        this.totalRewards = 0;
         this.loadStats();
     }
 
     loadStats() {
+        if (typeof window === 'undefined' || !window.localStorage) return;
         try {
-            const stats = JSON.parse(localStorage.getItem(`shangdaren_stats_${this.name}`));
+            const stats = JSON.parse(window.localStorage.getItem(`shangdaren_stats_${this.name}`));
             if (stats) {
                 this.wins = stats.wins || 0;
                 this.totalGames = stats.totalGames || 0;
+                this.totalRewards = stats.totalRewards || 0;
             }
         } catch (e) {
             console.error("Failed to load stats for " + this.name, e);
@@ -26,10 +30,12 @@ export class Player {
     }
 
     saveStats() {
+        if (typeof window === 'undefined' || !window.localStorage) return;
         try {
-            localStorage.setItem(`shangdaren_stats_${this.name}`, JSON.stringify({
+            window.localStorage.setItem(`shangdaren_stats_${this.name}`, JSON.stringify({
                 wins: this.wins,
-                totalGames: this.totalGames
+                totalGames: this.totalGames,
+                totalRewards: this.totalRewards
             }));
         } catch (e) {
             console.error("Failed to save stats for " + this.name, e);
@@ -93,6 +99,12 @@ export class Player {
         const idx = this.passedCards.findIndex(c => c.id === card.id);
         if (idx !== -1) {
             this.passedCards.splice(idx, 1);
+        }
+    }
+
+    recordKouDecline(card) {
+        if (!this.declinedKouCards.some(c => c.id === card.id)) {
+            this.declinedKouCards.push(card);
         }
     }
 

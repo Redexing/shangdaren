@@ -32,6 +32,17 @@ export class Game {
         this.pendingActions = new Map();
         this.highlightedCards = []; // Array of Card objects to highlight
         this.declinedPlayers = new Set(); // Track who has declined the current active card
+        this.flowToken = 0; // Invalidates timers from a previous game or turn branch
+    }
+
+    // Only the newest follow-up runs. A new game, or a later step, cancels timers
+    // still pending from an earlier game so they cannot meld the wrong card.
+    scheduleFlow(delay, fn) {
+        const token = ++this.flowToken;
+        setTimeout(() => {
+            if (token !== this.flowToken) return;
+            fn();
+        }, delay);
     }
 
     on(event, callback) {
@@ -51,6 +62,9 @@ export class Game {
     }
 
     init(watchMode = false) {
+        // Drop timers from the previous game before any new turn is scheduled.
+        this.flowToken++;
+
         // Create deck with a completely fresh seeded PRNG instance
         this.deck = new Deck(getFreshSeed());
 
@@ -95,7 +109,7 @@ export class Game {
 
         // Respect autoPlayDelay for bots/watch mode
         const delay = this.isWatchMode ? this.autoPlayDelay : GAME_SPEEDS.TURN_START_DELAY;
-        setTimeout(() => this.drawCard(), delay);
+        this.scheduleFlow(delay, () => this.drawCard());
     }
 
     drawCard() {
@@ -116,10 +130,9 @@ export class Game {
         this.emit(EVENTS.STATE_CHANGE);
 
         const delay = (this.isWatchMode || !this.players[this.currentPlayerIndex].isHuman) ? GAME_SPEEDS.BOT_DRAW_INTERNAL_DELAY : 0;
-        setTimeout(() => {
-            // Check Actions
+        this.scheduleFlow(delay, () => {
             this.handleDrawActions(card);
-        }, delay);
+        });
     }
 
     checkInterrupts(card, isDraw) {
@@ -128,43 +141,91 @@ export class Game {
     }
 
     calculateActions(card) {
-        // Check actions for Current Player (Drawer)
-        const currentP = this.getCurrentPlayer();
-        const currentActions = Rules.getActions(currentP.hand, card, true, currentP.exposed, currentP.discards);
+        const interruptTypes = new Set([
+            'HARMONY', 'PENG', 'SAO', 'XIA-CE', 'KAI-ZAO',
+            'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
+        ]);
 
-        // Check Harmony for Drawer
-        if (Rules.canDeclareHarmony(currentP.hand, currentP.exposed, card)) {
-            currentActions.push({ type: 'HARMONY', cards: [] });
-        }
-
-        // Add PASS for Drawer
-        currentActions.push({ type: 'PASS', cards: [] });
-
-        // Check actions for Others (Interrupts)
         const allActions = new Map();
+        const currentP = this.getCurrentPlayer();
+        const drawerSelfDraw = this.isSelfDrawFor(this.currentPlayerIndex);
+        const currentActions = Rules.getActions(
+            currentP.hand, card, true, currentP.exposed, currentP.discards,
+            this.kouHistoryOptions(this.currentPlayerIndex, drawerSelfDraw)
+        );
+        this.ensureHarmonyAction(currentActions, currentP, card, drawerSelfDraw, true);
+        this.applyPassPolicy(currentActions, this.currentPlayerIndex);
+        allActions.set(this.currentPlayerIndex, currentActions);
 
-        // Drawer Actions
-        if (currentActions.length > 0) {
-            allActions.set(this.currentPlayerIndex, currentActions);
-        }
-
-        // Others (PENG/SAO)
+        // Others may interrupt with Harmony, trips, or quads — not CHI/KOU.
         for (let i = 1; i < 3; i++) {
             const idx = (this.currentPlayerIndex + i) % 3;
             const p = this.players[idx];
-            const moves = Rules.getActions(p.hand, card, false, p.exposed, p.discards);
-
-            // Rule 8: Interrupting with Harmony
-            if (Rules.canDeclareHarmony(p.hand, p.exposed, card)) {
-                moves.push({ type: 'HARMONY', cards: [] });
-            }
-
+            let moves = Rules.getActions(
+                p.hand, card, false, p.exposed, p.discards,
+                this.kouHistoryOptions(idx, false)
+            );
+            this.ensureHarmonyAction(moves, p, card, false, false);
+            moves = moves.filter(m => interruptTypes.has(m.type));
+            this.applyPassPolicy(moves, idx);
             if (moves.length > 0) {
                 allActions.set(idx, moves);
             }
         }
 
         return allActions;
+    }
+
+    // Only cards this player declined while KOU was legally available close a
+    // suit. The physical PASSED piles alone do not preserve that eligibility.
+    kouHistoryOptions(playerIndex, isSelfDraw) {
+        const player = this.players[playerIndex];
+        return {
+            isSelf: playerIndex === this.currentPlayerIndex,
+            isSelfDraw,
+            declinedKouCards: player.declinedKouCards || []
+        };
+    }
+
+    // Self-draw means this player drew the completing card from the deck.
+    // A card passed by someone else, or drawn by another player, is not a self-draw.
+    isSelfDrawFor(playerIndex) {
+        return this.activeCardSource === 'DECK' && this.currentPlayerIndex === playerIndex;
+    }
+
+    ensureHarmonyAction(actions, player, card, isSelfDraw, isSelf = isSelfDraw) {
+        if (Rules.canDeclareHarmony(player.hand, player.exposed, card, { isSelfDraw, isSelf })
+            && !actions.some(a => a.type === 'HARMONY')) {
+            actions.push({ type: 'HARMONY', cards: [] });
+        }
+    }
+
+    // Harmony is must-claim on a self-drawn tile or one from the upstream (right) player.
+    // It is optional when the downstream (left) player draws it.
+    isWinningTileMustClaim(playerIndex) {
+        const upstream = (playerIndex + 2) % 3;
+        if (this.activeCardSource === 'DECK' || this.activeCardSource === null) {
+            return this.currentPlayerIndex === playerIndex || this.currentPlayerIndex === upstream;
+        }
+        return this.activeCardSource === playerIndex || this.activeCardSource === upstream;
+    }
+
+    applyPassPolicy(actions, playerIndex) {
+        const mandatoryMeldTypes = [
+            'SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE',
+            'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
+        ];
+        const hasMandatoryMeld = actions.some(m => mandatoryMeldTypes.includes(m.type));
+        const hasHarmony = actions.some(m => m.type === 'HARMONY');
+        const harmonyMust = hasHarmony && this.isWinningTileMustClaim(playerIndex);
+
+        for (let i = actions.length - 1; i >= 0; i--) {
+            if (actions[i].type === 'PASS') actions.splice(i, 1);
+        }
+
+        if (!hasMandatoryMeld && !harmonyMust) {
+            actions.push({ type: 'PASS', cards: [] });
+        }
     }
 
     // Process actions after Draw
@@ -175,10 +236,15 @@ export class Game {
         const humanIdx = this.players.findIndex(p => p.isHuman);
         const humanActions = actionMap.get(humanIdx) || [];
 
-        // Rule 2: Always wait for Human to see and "Decline" or Action if not in watch mode
+        // Wait for the human to act or decline, but do not add PASS over a must-claim.
         if (!this.isWatchMode && humanIdx !== -1) {
-            // Ensure PASS is always available for human if it's not already there
-            if (!humanActions.find(a => a.type === 'PASS')) {
+            const mustClaim = humanActions.some(a => [
+                'SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE',
+                'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
+            ].includes(a.type))
+                || (humanActions.some(a => a.type === 'HARMONY') && this.isWinningTileMustClaim(humanIdx));
+
+            if (!mustClaim && !humanActions.find(a => a.type === 'PASS')) {
                 humanActions.push({ type: 'PASS', cards: [] });
                 actionMap.set(humanIdx, humanActions);
             }
@@ -190,28 +256,36 @@ export class Game {
     }
 
     resolveBotActions(card, actionMap) {
-        // Naive resolution: Check Interrupts first.
+        // [RULE-INTERRUPT-PRIORITY]
+        // Priority 1: HARMONY claims (interrupters and drawer).
+        for (const offset of [1, 2, 0]) {
+            const idx = (this.currentPlayerIndex + offset) % 3;
+            if (this.declinedPlayers.has(idx)) continue;
+
+            const player = this.players[idx];
+            const moves = actionMap.get(idx);
+            if (moves && moves.length > 0) {
+                const win = moves.find(m => m.type === 'HARMONY');
+                if (win && (!player.isHuman || this.isWatchMode)) {
+                    this.handleHarmony(idx, card);
+                    return;
+                }
+            }
+        }
+
+        // Priority 2: Quad and Trip interrupt claims from other players.
         let handled = false;
         for (let i = 1; i < 3; i++) {
             const idx = (this.currentPlayerIndex + i) % 3;
             if (this.declinedPlayers.has(idx)) continue; // Skip those who declined
 
             const player = this.players[idx];
-            // If it's a human interrupter and we are NOT in watch mode, we MUST wait.
-            // But handleDrawActions already sets DECISION_WAIT if humanIdx has actions.
-            // If we are here, it means we are either in watch mode OR human has already declined or has no SAO/PENG.
-
             const moves = actionMap.get(idx);
             if (moves && moves.length > 0) {
-                // Check Harmony first
-                const win = moves.find(m => m.type === 'HARMONY');
-                if (win && (!player.isHuman || this.isWatchMode)) {
-                    this.handleHarmony(idx, card);
-                    handled = true;
-                    break;
-                }
-
-                const meld = moves.find(m => ['SAO', 'PENG', 'XIA-CE', 'KAI-ZAO', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'].includes(m.type));
+                const meld = moves.find(m => [
+                    'SAO', 'PENG', 'XIA-CE', 'KAI-ZAO',
+                    'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
+                ].includes(m.type));
                 if (meld && (!player.isHuman || this.isWatchMode)) {
                     this.log(`${player.name} interrupts with ${meld.type}!`);
                     this.executeBotMeld(idx, card, meld);
@@ -222,7 +296,7 @@ export class Game {
         }
 
         if (!handled) {
-            // Drawer Action
+            // Priority 3: Drawer Action
             const dIdx = this.currentPlayerIndex;
             if (this.declinedPlayers.has(dIdx)) {
                 // This shouldn't happen usually but for safety
@@ -252,7 +326,10 @@ export class Game {
                         return;
                     }
 
-                    const mustMove = drawerMoves.find(m => ['SAO', 'PENG', 'CHI', 'XIA-CE', 'KAI-ZAO', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'].includes(m.type));
+                    const mustMove = drawerMoves.find(m => [
+                        'SAO', 'PENG', 'CHI', 'KAI-ZAO', 'XIA-CE',
+                        'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE', 'TWO-DRAGONS-TUSSLING'
+                    ].includes(m.type));
                     const kouMove = drawerMoves.find(m => m.type === 'KOU');
 
                     if (mustMove) {
@@ -278,6 +355,11 @@ export class Game {
         this.declinedPlayers.add(playerIndex);
 
         if (isDrawer) {
+            const offeredActions = this.pendingActions.get(playerIndex) || [];
+            if (offeredActions.some(action => action.type === 'KOU')) {
+                p.recordKouDecline(card);
+            }
+
             if (this.activeCardSource === 'DECK') {
                 // Case 1: Drawer passes a freshly drawn card
                 this.log(`${p.name} PASS (Passed) ${card.toString()}`);
@@ -289,47 +371,31 @@ export class Game {
                 this.turnPhase = 'ANIMATING';
                 this.emit(EVENTS.STATE_CHANGE);
 
-                setTimeout(() => {
+                this.scheduleFlow(GAME_SPEEDS.PASS_ACTION_DELAY, () => {
                     this.highlightedCards = [];
                     const nextIdx = (playerIndex + 1) % 3;
                     const nextP = this.players[nextIdx];
-                    const actions = Rules.getActions(nextP.hand, card, true, nextP.exposed, nextP.discards);
-
-                    // Rule 8: Harmony from passed
-                    if (Rules.canDeclareHarmony(nextP.hand, nextP.exposed, card)) {
-                        if (!actions.find(a => a.type === 'HARMONY')) actions.push({ type: 'HARMONY', cards: [] });
-                    }
-
-                    // Mandatory CHI check
-                    const chiAction = actions.find(a => a.type === 'CHI');
-                    if (chiAction) {
+                    this.currentPlayerIndex = nextIdx;
+                    this.activeCard = card;
+                    const receiverActions = this.calculateActions(card).get(nextIdx) || [];
+                    if (receiverActions.some(a => a.type === 'CHI')) {
                         this.log(`Mandatory CHI for ${nextP.name}!`);
-                        const finalActions = actions.filter(a => a.type === 'CHI' || a.type === 'HARMONY');
-                        this.currentPlayerIndex = nextIdx;
-                        this.activeCard = card;
-                        this.pendingActions = new Map([[nextIdx, finalActions]]);
-                    } else {
-                        if (!actions.find(a => a.type === 'PASS')) {
-                            actions.push({ type: 'PASS', cards: [] });
-                        }
-                        this.currentPlayerIndex = nextIdx;
-                        this.activeCard = card;
-                        this.pendingActions = new Map([[nextIdx, actions]]);
                     }
+                    this.pendingActions = new Map([[nextIdx, receiverActions]]);
 
                     if (!nextP.isHuman || this.isWatchMode) {
                         // Emit STATE_CHANGE so the carousel can scroll to nextIdx
                         // and the user sees the receiving player before they act.
                         this.turnPhase = 'DRAWING';
                         this.emit(EVENTS.STATE_CHANGE);
-                        setTimeout(() => {
-                            this.resolvePassedBotActions(nextIdx, card, this.pendingActions.get(nextIdx));
-                        }, GAME_SPEEDS.PASS_ACTION_DELAY);
+                        this.scheduleFlow(GAME_SPEEDS.PASS_ACTION_DELAY, () => {
+                            this.resolvePassedBotActions(nextIdx, card, receiverActions);
+                        });
                     } else {
                         this.turnPhase = 'DECISION_WAIT';
                         this.emit(EVENTS.STATE_CHANGE);
                     }
-                }, GAME_SPEEDS.PASS_ACTION_DELAY);
+                });
             } else {
                 // Case 2: Player declines a card passed to them (Secondary Pass)
                 this.log(`${p.name} declined passed card. Now draws from deck.`);
@@ -340,12 +406,12 @@ export class Game {
                 this.activeCard = card; // Ensure it's still in the center
                 this.emit(EVENTS.STATE_CHANGE);
 
-                setTimeout(() => {
+                this.scheduleFlow(GAME_SPEEDS.PASS_ACTION_DELAY, () => {
                     this.activeCard = null;
                     this.highlightedCards = [];
                     this.drawnCardId = null;
                     this.startTurn();
-                }, GAME_SPEEDS.PASS_ACTION_DELAY);
+                });
             }
         } else {
             // Interrupt PASS (Decline)
@@ -379,45 +445,94 @@ export class Game {
 
     handleHarmony(playerIndex, card) {
         const p = this.players[playerIndex];
-        this.log(`${p.name} declares HARMONY!`);
+        const isSelfDraw = this.isSelfDrawFor(playerIndex);
+        const isSelf = playerIndex === this.currentPlayerIndex;
+        const reward = Rules.calculateRewards(p.hand, p.exposed, card, { isSelfDraw, isSelf });
+        this.logHarmony(p, reward);
+
+        // [RULE-PASSED-RECLAMATION]: Remove claimed card from passer's passedCards pile
+        if (card && this.activeCardSource !== null && this.activeCardSource !== 'DECK' && this.activeCardSource !== playerIndex) {
+            const prevP = this.players[this.activeCardSource];
+            if (prevP) prevP.removePassedCard(card);
+        }
 
         // Finalize state: Add all cards to exposed for visualization
-        const allCards = [...p.hand];
-        if (card) allCards.push(card);
-        p.exposed.forEach(m => allCards.push(...m.cards));
-
-        const partition = Rules.findPerfectPartition(allCards);
-        if (partition) {
-            p.exposed = partition;
+        const assessed = Rules.assessHarmony(p.hand, p.exposed, card, { isSelfDraw, isSelf });
+        if (assessed && assessed.partition) {
+            p.exposed = assessed.partition;
             p.hand = [];
         }
 
-        this.highlightedCards = [card];
+        this.highlightedCards = card ? [card] : [];
         this.activeCard = null;
         this.emit(EVENTS.STATE_CHANGE);
 
-        setTimeout(() => {
-            this.endGame({ winner: p });
-        }, GAME_SPEEDS.HARMONY_CELEBRATION);
+        this.scheduleFlow(GAME_SPEEDS.HARMONY_CELEBRATION, () => {
+            this.endGame({ winner: p, rewards: reward.total });
+        });
+    }
+
+    revealNakedQuadIfPresent(player, highlighted = []) {
+        const nakedQuad = Rules.findNakedQuadInHand(player.hand);
+        if (!nakedQuad) return false;
+        nakedQuad.forEach(c => {
+            const idx = player.hand.findIndex(hc => hc.id === c.id);
+            if (idx !== -1) player.hand.splice(idx, 1);
+        });
+        player.exposed.push({ type: 'KAI-ZAO', cards: nakedQuad });
+        highlighted.push(...nakedQuad);
+        this.log(`${player.name} revealed naked 4-of-a-kind (${nakedQuad[0].toString()}) in EXPOSED and skipped discard`);
+        return true;
     }
 
     executeBotMeld(playerIndex, card, action) {
-        // Bot automatically discards random card after meld (unless SAO)
+        // Bot automatically discards random card after meld (unless quad)
         // 1. Meld
         const player = this.players[playerIndex];
 
         const highlighted = [];
 
+        if (!card) return;
+        if (player.exposed.some(m => m.cards.some(c => c.id === card.id))) {
+            this.log(`Ignored repeat of ${card.toString()}`);
+            return;
+        }
+        if (action.meldRef && !Rules.isLegalMeldUpgrade(action.meldRef, card, action.type, action.cards || [], action.mergeMeldRef || null)) {
+            this.log(`Ignored illegal ${action.type} with ${card.toString()}`);
+            return;
+        }
+
         if (action.meldRef) {
             const meld = action.meldRef;
             if (meld && card) {
                 const oldType = meld.type;
+                // Remove any extra hand cards attached to this upgrade (e.g., SAO -> HALF-DRAGON / DRAGON)
+                (action.cards || []).forEach(c => {
+                    const idx = player.hand.findIndex(hc => hc.id === c.id);
+                    if (idx !== -1) player.hand.splice(idx, 1);
+                    meld.cards.push(c);
+                });
+                // Merge secondary exposed meld if present (e.g., SAO + KOU -> DRAGON, HALF-DRAGON + SAO -> TWO-DRAGONS-TUSSLING)
+                if (action.mergeMeldRef) {
+                    const mergeIdx = player.exposed.indexOf(action.mergeMeldRef);
+                    if (mergeIdx !== -1) player.exposed.splice(mergeIdx, 1);
+                    meld.cards.push(...action.mergeMeldRef.cards);
+                }
+                if (action.quadTypes) {
+                    meld.quadTypes = action.quadTypes;
+                }
                 meld.type = action.type; // Upgrade type (e.g., CHI or DRAGON)
                 meld.cards.push(card);
                 meld.cards.sort((a, b) => a.characterIndex - b.characterIndex);
                 highlighted.push(card, ...meld.cards);
                 this.log(`${player.name} upgraded ${oldType} into ${action.type} with ${card.toString()}`);
                 this.emit('ACTION_ANNOUNCE', { playerIndex, type: action.type });
+
+                // [RULE-PASSED-RECLAMATION]
+                if (this.activeCardSource !== null && this.activeCardSource !== 'DECK' && this.activeCardSource !== playerIndex) {
+                    const prevP = this.players[this.activeCardSource];
+                    if (prevP) prevP.removePassedCard(card);
+                }
             }
         } else {
             const meldCards = [...action.cards, card];
@@ -427,7 +542,9 @@ export class Game {
                 if (idx !== -1) player.hand.splice(idx, 1);
             });
             // Add Exposed
-            player.exposed.push({ type: action.type, cards: meldCards });
+            const newMeld = { type: action.type, cards: meldCards };
+            if (action.quadTypes) newMeld.quadTypes = action.quadTypes;
+            player.exposed.push(newMeld);
             this.log(`${player.name} performs ${action.type}`);
             this.emit('ACTION_ANNOUNCE', { playerIndex, type: action.type });
             highlighted.push(...meldCards);
@@ -440,35 +557,27 @@ export class Game {
         }
 
         // Check Harmony
-        if (this.checkHarmony(player)) {
-            this.log(`${player.name} declares HARMONY!`);
-            this.endGame({ winner: player });
-            return;
-        }
+        if (this.finishHarmonyIfWon(player)) return;
 
-        // 2. Discard (if not KAI-ZAO/XIA-CE/DRAGON/SNAKE etc)
+        // A mandatory HALF-DRAGON / HALF-SNAKE that becomes a third KOU is baozi.
+        if (this.declareBaoziIfThirdKou(player)) return;
+
+        // 2. Discard (if not KAI-ZAO/XIA-CE)
         const skipDiscard = ['KAI-ZAO', 'XIA-CE'].includes(action.type);
 
         if (!skipDiscard) {
-            if (player.hand.length === 0) {
-                this.log(`${player.name} is BAO-ZI! (No cards to discard)`);
-                this.endGame({ winner: null, special: 'BAO-ZI', triggerPlayer: player });
-                return;
-            }
+            // [RULE-NAKED-QUAD-REVEAL]: If player holds a naked 4-of-a-kind in hand, reveal it and skip discard
+            if (this.revealNakedQuadIfPresent(player, highlighted)) {
+                if (this.finishHarmonyIfWon(player)) return;
+            } else {
+                if (this.declareBaoziIfNoLegalDiscard(player)) return;
 
-            let disIdx = -1;
-            for (let i = 0; i < player.hand.length; i++) {
-                if (Rules.canDiscard(player.hand, i)) {
-                    disIdx = i;
-                    break;
-                }
+                const disIdx = Rules.firstLegalDiscardIndex(player.hand);
+                const disCard = player.discard(disIdx);
+                player.addToDiscards(disCard, false);
+                this.log(`${player.name} discarded ${disCard.toString()}`);
+                highlighted.push(disCard);
             }
-            if (disIdx === -1) disIdx = 0;
-
-            const disCard = player.discard(disIdx);
-            player.addToDiscards(disCard, false);
-            this.log(`${player.name} discarded ${disCard.toString()}`);
-            highlighted.push(disCard);
         }
 
         // Immediately clear center-discard div so the discarded card only shows in player's pile
@@ -479,13 +588,13 @@ export class Game {
         this.turnPhase = 'ANIMATING';
         this.emit(EVENTS.STATE_CHANGE);
 
-        setTimeout(() => {
+        this.scheduleFlow(GAME_SPEEDS.BOT_MELD_HIGHLIGHT, () => {
             this.highlightedCards = [];
             // Reset to whoever melded, and THEN advance turn
             this.currentPlayerIndex = playerIndex;
             this.currentPlayerIndex = (this.currentPlayerIndex + 1) % 3;
             this.startTurn();
-        }, GAME_SPEEDS.BOT_MELD_HIGHLIGHT);
+        });
     }
 
     // For Human: Called when button clicked
@@ -503,22 +612,41 @@ export class Game {
 
         // Validate discard index first
         const skipDiscard = ['KAI-ZAO', 'XIA-CE'].includes(action.type);
+        const thirdKou = Rules.wouldExceedExposedKouLimit(p.exposed, action.type);
         let discardCard = null;
 
-        if (!skipDiscard) {
-            if (discardCardIndex === -1) {
+        if (!skipDiscard && !thirdKou) {
+            const prospective = this.handAfterMeldClaim(p.hand, action);
+            const hasNakedQuad = Boolean(Rules.findNakedQuadInHand(prospective));
+            if (hasNakedQuad || Rules.firstLegalDiscardIndex(prospective) === -1) {
+                discardCard = null;
+            } else if (discardCardIndex === -1 || !p.hand[discardCardIndex]) {
                 console.error("Discard required for " + action.type);
                 return;
+            } else {
+                const candidate = p.hand[discardCardIndex];
+                if ((action.cards || []).some(c => c.id === candidate.id)) {
+                    console.error("Cannot discard a card that is part of the meld being formed");
+                    return;
+                }
+                const prospectiveIdx = prospective.findIndex(c => c.id === candidate.id);
+                if (prospectiveIdx === -1 || !Rules.canDiscard(prospective, prospectiveIdx)) {
+                    console.error("Selected card cannot be legally discarded");
+                    return;
+                }
+                discardCard = candidate;
             }
-            discardCard = p.hand[discardCardIndex];
         } else {
             discardCard = null; // These types don't require discard
         }
 
         // Highlight logic
-        const involved = [...action.cards];
+        const involved = [...(action.cards || [])];
         if (action.meldRef) {
             involved.push(...action.meldRef.cards);
+        }
+        if (action.mergeMeldRef) {
+            involved.push(...action.mergeMeldRef.cards);
         }
         if (discardCard) involved.push(discardCard);
         if (this.activeCard) involved.push(this.activeCard);
@@ -527,16 +655,37 @@ export class Game {
         this.turnPhase = 'ANIMATING'; // Freeze
         this.emit(EVENTS.STATE_CHANGE);
 
-        setTimeout(() => {
+        this.scheduleFlow(GAME_SPEEDS.HUMAN_MELD_HIGHLIGHT, () => {
             this.finalizeConfirmHumanMeld(p, action, discardCard, humanIdx);
-        }, GAME_SPEEDS.HUMAN_MELD_HIGHLIGHT);
+        });
     }
 
     finalizeConfirmHumanMeld(p, action, discardCard, humanIdx) {
         const meldCard = this.activeCard;
+        if (meldCard && p.exposed.some(m => m.cards.some(c => c.id === meldCard.id))) {
+            this.log(`Ignored repeat of ${meldCard.toString()}`);
+            return;
+        }
+        if (action.meldRef && !Rules.isLegalMeldUpgrade(action.meldRef, meldCard, action.type, action.cards || [], action.mergeMeldRef || null)) {
+            this.log(`Ignored illegal ${action.type} with ${meldCard ? meldCard.toString() : 'no card'}`);
+            return;
+        }
         if (action.meldRef) {
             const meld = action.meldRef;
             if (meld && meldCard) {
+                (action.cards || []).forEach(c => {
+                    const idx = p.hand.findIndex(hc => hc.id === c.id);
+                    if (idx !== -1) p.hand.splice(idx, 1);
+                    meld.cards.push(c);
+                });
+                if (action.mergeMeldRef) {
+                    const mergeIdx = p.exposed.indexOf(action.mergeMeldRef);
+                    if (mergeIdx !== -1) p.exposed.splice(mergeIdx, 1);
+                    meld.cards.push(...action.mergeMeldRef.cards);
+                }
+                if (action.quadTypes) {
+                    meld.quadTypes = action.quadTypes;
+                }
                 meld.type = action.type;
                 meld.cards.push(meldCard);
                 meld.cards.sort((a, b) => a.characterIndex - b.characterIndex);
@@ -554,7 +703,9 @@ export class Game {
                 const idx = p.hand.findIndex(hc => hc.id === c.id);
                 if (idx !== -1) p.hand.splice(idx, 1);
             });
-            p.exposed.push({ type: action.type, cards: meldCards });
+            const newMeld = { type: action.type, cards: meldCards };
+            if (action.quadTypes) newMeld.quadTypes = action.quadTypes;
+            p.exposed.push(newMeld);
             this.emit('ACTION_ANNOUNCE', { playerIndex: humanIdx, type: action.type });
 
             // Rule 6 removal
@@ -567,27 +718,26 @@ export class Game {
         this.activeCard = null;
 
         // Check Harmony
-        if (this.checkHarmony(p)) {
-            this.log(`${p.name} declares HARMONY!`);
-            this.endGame({ winner: p });
-            return;
-        }
+        if (this.finishHarmonyIfWon(p)) return;
+
+        if (this.declareBaoziIfThirdKou(p)) return;
 
         const skipDiscard = ['KAI-ZAO', 'XIA-CE'].includes(action.type);
 
-        // 2. Discard
+        // 2. Discard. A must-meld with no legal discard is baozi, including a
+        // harmony-shaped hand that scores 0 rewards and therefore cannot win.
         if (!skipDiscard) {
-            if (p.hand.length === 0) {
-                this.log(`${p.name} is BAO-ZI! (No cards to discard)`);
-                this.endGame({ winner: null, special: 'BAO-ZI', triggerPlayer: p });
-                return;
-            }
-            if (discardCard) {
-                const dIdx = p.hand.findIndex(c => c.id === discardCard.id);
-                if (dIdx !== -1) {
-                    const dCard = p.discard(dIdx);
-                    p.addToDiscards(dCard, false);
-                    this.log(`${p.name} discarded ${dCard.toString()}`);
+            if (this.revealNakedQuadIfPresent(p)) {
+                if (this.finishHarmonyIfWon(p)) return;
+            } else {
+                if (this.declareBaoziIfNoLegalDiscard(p)) return;
+                if (discardCard) {
+                    const dIdx = p.hand.findIndex(c => c.id === discardCard.id);
+                    if (dIdx !== -1) {
+                        const dCard = p.discard(dIdx);
+                        p.addToDiscards(dCard, false);
+                        this.log(`${p.name} discarded ${dCard.toString()}`);
+                    }
                 }
             }
         }
@@ -625,7 +775,7 @@ export class Game {
         this.emit(EVENTS.STATE_CHANGE);
 
         if (!player.isHuman || this.isWatchMode) {
-            setTimeout(() => this.botDiscard(player), this.autoPlayDelay);
+            this.scheduleFlow(this.autoPlayDelay, () => this.botDiscard(player));
         }
     }
 
@@ -639,9 +789,9 @@ export class Game {
         this.turnPhase = 'ANIMATING'; // Freeze UI
         this.emit(EVENTS.STATE_CHANGE);
 
-        setTimeout(() => {
+        this.scheduleFlow(GAME_SPEEDS.DISCARD_HIGHLIGHT, () => {
             this.finalizeDiscard(p, card);
-        }, GAME_SPEEDS.DISCARD_HIGHLIGHT);
+        });
     }
 
     finalizeDiscard(p, card) {
@@ -668,40 +818,9 @@ export class Game {
 
         this.highlightedCards = []; // Reset highlight
 
-        // Check KOU completion (mandatory)
-        const nextIdx = (this.currentPlayerIndex + 1) % 3;
-        const nextPlayer = this.players[nextIdx];
-
-        // Existing KOU completion logic...
-        const kous = nextPlayer.exposed.filter(m => m.type === 'KOU');
-        let kouMatch = null;
-        for (const k of kous) {
-            if (Rules.canCompleteKou(k.cards, card)) {
-                kouMatch = k;
-                break;
-            }
-        }
-
-        if (kouMatch) {
-            this.log(`${nextPlayer.name} has KOU match! Must take ${card.toString()}`);
-            kouMatch.type = 'SUITE';
-            kouMatch.cards.push(card);
-
-            this.currentPlayerIndex = nextIdx;
-            this.activeCard = null;
-            this.turnPhase = 'DISCARD_WAIT';
-            this.emit(EVENTS.STATE_CHANGE);
-
-            if (!nextPlayer.isHuman || this.isWatchMode) setTimeout(() => this.botDiscard(nextPlayer), this.autoPlayDelay);
-            return;
-        }
-
-        // If no mandatory interrupt, allow next player to FORM KOU (Optional) from discard?
-        // For simplicity: We only allow forming KOU from Drawn card in this version.
-        // Or implement optional interrupt here if needed.
-
-        // Turn passes to next player
-        this.currentPlayerIndex = nextIdx;
+        // A card discarded from hand is not offered for CHI. A fresh draw the
+        // player passes is offered to the next player in handlePass.
+        this.currentPlayerIndex = (this.currentPlayerIndex + 1) % 3;
 
         // Immediately clear center-discard div so the discarded card only shows in player's pile
         this.activeCard = null;
@@ -711,10 +830,10 @@ export class Game {
         this.highlightedCards = [card];
         this.emit(EVENTS.STATE_CHANGE);
 
-        setTimeout(() => {
+        this.scheduleFlow(GAME_SPEEDS.NEXT_TURN_DELAY, () => {
             this.highlightedCards = [];
             this.startTurn();
-        }, GAME_SPEEDS.NEXT_TURN_DELAY);
+        });
     }
 
     formKou(cardIndex) {
@@ -765,8 +884,49 @@ export class Game {
         this.handlePlayerDiscard(idx);
     }
 
+    handAfterMeldClaim(hand, action) {
+        if (!action || !action.cards || action.cards.length === 0) return hand;
+        const claimedIds = new Set((action.cards || []).map(c => c.id));
+        return hand.filter(c => !claimedIds.has(c.id));
+    }
+
+    logHarmony(player, reward) {
+        const keys = (reward.reasons || []).join(', ');
+        this.log(`${player.name} declares HARMONY! Rewards: ${reward.total} [${keys}]`);
+    }
+
+    // The completing card is already part of the hand or an exposed meld.
+    finishHarmonyIfWon(player) {
+        const playerIndex = this.players.indexOf(player);
+        const reward = Rules.calculateRewards(player.hand, player.exposed, null, {
+            isSelfDraw: this.isSelfDrawFor(playerIndex)
+        });
+        if (reward.total < 1) return false;
+        this.logHarmony(player, reward);
+        this.endGame({ winner: player, rewards: reward.total });
+        return true;
+    }
+
+    declareBaoziIfNoLegalDiscard(player) {
+        if (Rules.firstLegalDiscardIndex(player.hand) !== -1) return false;
+        this.log(`${player.name} is BAO-ZI! (No cards to discard)`);
+        this.endGame({ winner: null, special: 'BAO-ZI', triggerPlayer: player });
+        return true;
+    }
+
+    // [RULE-KOU-MAX-EXPOSED] + [RULE-BAO-ZI]: a third exposed KOU-equivalent loses immediately.
+    declareBaoziIfThirdKou(player) {
+        if (Rules.exposedKouCount(player.exposed) <= 2) return false;
+        this.log(`${player.name} is BAO-ZI! (More than 2 KOU)`);
+        this.endGame({ winner: null, special: 'BAO-ZI', triggerPlayer: player });
+        return true;
+    }
+
     checkHarmony(player) {
-        return Rules.canDeclareHarmony(player.hand, player.exposed, null);
+        const playerIndex = this.players.indexOf(player);
+        return Rules.canDeclareHarmony(player.hand, player.exposed, null, {
+            isSelfDraw: this.isSelfDrawFor(playerIndex)
+        });
     }
 
     getCurrentPlayer() {
@@ -783,17 +943,20 @@ export class Game {
 
         // 2. Determine who won based on the result
         if (result.special === 'BAO-ZI') {
-            // Everyone wins except the triangle player (triggerPlayer)
+            // Everyone wins except the trigger player; each winner gets 1 reward (大).
             this.players.forEach(p => {
                 if (p.name !== result.triggerPlayer.name) {
                     p.wins++;
+                    p.totalRewards += 1;
                 }
             });
         } else if (result.winner) {
-            // A specific winner
+            // A specific winner. Rewards apply only to that player's harmonizing hand.
+            const earned = result.rewards || 0;
             this.players.forEach(p => {
                 if (p.name === result.winner.name) {
                     p.wins++;
+                    p.totalRewards += earned;
                 }
             });
         }
@@ -804,5 +967,6 @@ export class Game {
 
         // 4. Emit the event
         this.emit(EVENTS.GAME_OVER, result);
+        this.emit(EVENTS.STATE_CHANGE);
     }
 }
