@@ -10,6 +10,7 @@ alwaysApply: true
   - Linter: `npm run lint` (or `pytest` / `golangci-lint` depending on environment)
   - Tests: `npm test`
 - **Bug Fixes (Test-First Principle):** When fixing bugs, adopt the test-first principle: add a test case when possible to demonstrate the issue first, then fix the code to make the test pass. This ensures convergence on expected game behavior and prevents regressions.
+- **No Browser Verification:** Do not open a browser, drive the UI, or record screenshots/video to verify a change unless the user explicitly asks for browser verification. Prove behavior with `npm test` or a targeted headless test under `test/`. UI and rules bugs belong in those tests, not in a live game session.
 - **Error Handling:** If tests or linting checks fail:
   1. Do NOT ask the user to fix it manually unless credentials or external APIs are missing.
   2. Inspect the stack trace, fix the issue in code, and re-run the check.
