@@ -378,26 +378,19 @@ export function runGetActionsTests() {
             expectedActionCardsCount: 2
         },
         {
-            name: "[RULE-PENG-IMMUTABLE] Exposed PENG of 人 does not CHI when hand already holds 上大人",
+            name: "[RULE-PENG-IMMUTABLE] No CHI when hand already holds 上大人 and self-drawn 人 adds no new suite",
             hand: [
                 new Card(153, 0, 0), // 上
                 new Card(154, 0, 1), // 大
                 new Card(155, 0, 2)  // 人
             ],
-            card: new Card(156, 0, 2), // 人
+            card: new Card(156, 0, 2), // 人 (second copy; only four 人 exist in the deck)
             isSelf: true,
-            exposed: [{
-                type: 'PENG',
-                cards: [
-                    new Card(157, 0, 2),
-                    new Card(158, 0, 2),
-                    new Card(159, 0, 2)
-                ]
-            }],
+            exposed: [],
             expected: ['PASS']
         },
         {
-            name: "[RULE-MELD-NO-SPLIT] Exposed KAI-ZAO of 人 leaves a hand CHI of 上大+人 mandatory",
+            name: "[RULE-MELD-NO-SPLIT] Exposed KAI-ZAO of 尔 does not block hand CHI of 上大+人",
             hand: [
                 new Card(160, 0, 0), // 上
                 new Card(161, 0, 1)  // 大
@@ -407,10 +400,10 @@ export function runGetActionsTests() {
             exposed: [{
                 type: 'KAI-ZAO',
                 cards: [
-                    new Card(163, 0, 2),
-                    new Card(164, 0, 2),
-                    new Card(165, 0, 2),
-                    new Card(166, 0, 2)
+                    new Card(163, suite5Idx, 0),
+                    new Card(164, suite5Idx, 0),
+                    new Card(165, suite5Idx, 0),
+                    new Card(166, suite5Idx, 0)
                 ]
             }],
             expected: ['CHI'],
