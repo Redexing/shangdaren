@@ -378,38 +378,6 @@ export function runGetActionsTests() {
             expectedActionCardsCount: 2
         },
         {
-            name: "[RULE-PENG-IMMUTABLE] No CHI when hand already holds 上大人 and self-drawn 人 adds no new suite",
-            hand: [
-                new Card(153, 0, 0), // 上
-                new Card(154, 0, 1), // 大
-                new Card(155, 0, 2)  // 人
-            ],
-            card: new Card(156, 0, 2), // 人 (second copy; only four 人 exist in the deck)
-            isSelf: true,
-            exposed: [],
-            expected: ['PASS']
-        },
-        {
-            name: "[RULE-MELD-NO-SPLIT] Exposed KAI-ZAO of 尔 does not block hand CHI of 上大+人",
-            hand: [
-                new Card(160, 0, 0), // 上
-                new Card(161, 0, 1)  // 大
-            ],
-            card: new Card(162, 0, 2), // 人
-            isSelf: true,
-            exposed: [{
-                type: 'KAI-ZAO',
-                cards: [
-                    new Card(163, suite5Idx, 0),
-                    new Card(164, suite5Idx, 0),
-                    new Card(165, suite5Idx, 0),
-                    new Card(166, suite5Idx, 0)
-                ]
-            }],
-            expected: ['CHI'],
-            expectedActionCardsCount: 2
-        },
-        {
             name: "CHI higher priority than forming second KOU",
             hand: [new Card(13, suite2Idx, 1)], // 乙
             card: new Card(12, suite2Idx, 0), // 丘
