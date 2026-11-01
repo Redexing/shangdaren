@@ -7,6 +7,7 @@ import { runHarmonyTests } from './test_harmony.js';
 import { runHarmonyActionTests } from './test_harmony_actions.js';
 import { runRewardTests } from './test_rewards.js';
 import { runFlowTests } from './test_flow.js';
+import { runVoiceTests } from './test_voice.js';
 
 // Setup Mock Listeners
 const game = new Game();
@@ -105,6 +106,7 @@ runHarmonyTests();
 runHarmonyActionTests();
 runRewardTests();
 runFlowTests();
+runVoiceTests();
 
 // Verify Player stats storage gracefully handles headless environment
 const testPlayer = new Player('HeadlessPlayer');

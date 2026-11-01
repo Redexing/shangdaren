@@ -4,11 +4,13 @@ import { Player } from './player.js';
 import { Rules } from './rules.js';
 import { getFreshSeed } from './utils.js';
 import { GAME_SPEEDS } from './constants.js';
+import { lineIdForAction, lineIdForGlyph } from './voice_lines.js';
 
 export const EVENTS = {
     STATE_CHANGE: 'state_change',
     LOG: 'log',
-    GAME_OVER: 'game_over'
+    GAME_OVER: 'game_over',
+    VOICE_CALL: 'VOICE_CALL'
 };
 
 export class Game {
@@ -125,6 +127,10 @@ export class Game {
         this.activeCardSource = 'DECK';
         this.declinedPlayers.clear(); // Important: reset for new card
         this.log(`${this.getCurrentPlayer().name} drew ${card.toString()}`);
+        this.emit(EVENTS.VOICE_CALL, {
+            playerIndex: this.currentPlayerIndex,
+            lineId: lineIdForGlyph(card.character)
+        });
 
         // Pause briefly so user can see it in center discard
         this.emit(EVENTS.STATE_CHANGE);
@@ -398,6 +404,7 @@ export class Game {
                 });
             } else {
                 // Case 2: Player declines a card passed to them (Secondary Pass)
+                this.announceCall(playerIndex, 'PASS');
                 this.log(`${p.name} declined passed card. Now draws from deck.`);
 
                 // Brief pause to show it in the center before it's gone
@@ -443,7 +450,16 @@ export class Game {
         }
     }
 
+    announceCall(playerIndex, type) {
+        this.emit('ACTION_ANNOUNCE', { playerIndex, type });
+        const lineId = lineIdForAction(type);
+        if (lineId) {
+            this.emit(EVENTS.VOICE_CALL, { playerIndex, lineId });
+        }
+    }
+
     handleHarmony(playerIndex, card) {
+        this.announceCall(playerIndex, 'HARMONY');
         const p = this.players[playerIndex];
         const isSelfDraw = this.isSelfDrawFor(playerIndex);
         const isSelf = playerIndex === this.currentPlayerIndex;
@@ -526,7 +542,7 @@ export class Game {
                 meld.cards.sort((a, b) => a.characterIndex - b.characterIndex);
                 highlighted.push(card, ...meld.cards);
                 this.log(`${player.name} upgraded ${oldType} into ${action.type} with ${card.toString()}`);
-                this.emit('ACTION_ANNOUNCE', { playerIndex, type: action.type });
+                this.announceCall(playerIndex, action.type);
 
                 // [RULE-PASSED-RECLAMATION]
                 if (this.activeCardSource !== null && this.activeCardSource !== 'DECK' && this.activeCardSource !== playerIndex) {
@@ -546,7 +562,7 @@ export class Game {
             if (action.quadTypes) newMeld.quadTypes = action.quadTypes;
             player.exposed.push(newMeld);
             this.log(`${player.name} performs ${action.type}`);
-            this.emit('ACTION_ANNOUNCE', { playerIndex, type: action.type });
+            this.announceCall(playerIndex, action.type);
             highlighted.push(...meldCards);
 
             // Rule 6 removal
@@ -695,7 +711,7 @@ export class Game {
                     const prevP = this.players[this.activeCardSource];
                     prevP.removePassedCard(meldCard);
                 }
-                this.emit('ACTION_ANNOUNCE', { playerIndex: humanIdx, type: action.type });
+                this.announceCall(humanIdx, action.type);
             }
         } else {
             const meldCards = [...action.cards, meldCard];
@@ -706,7 +722,7 @@ export class Game {
             const newMeld = { type: action.type, cards: meldCards };
             if (action.quadTypes) newMeld.quadTypes = action.quadTypes;
             p.exposed.push(newMeld);
-            this.emit('ACTION_ANNOUNCE', { playerIndex: humanIdx, type: action.type });
+            this.announceCall(humanIdx, action.type);
 
             // Rule 6 removal
             if (this.activeCardSource !== null && this.activeCardSource !== 'DECK' && this.activeCardSource !== humanIdx) {
