@@ -7,7 +7,7 @@ Spoken audio is Mandarin only. The English UI stays English. The clips say the C
 ## Settled
 
 1. **Win call.** The engine term stays 和, on the button and in the speech bubble. The clip says **糊了** (`hú le`, 了 neutral).
-2. **Voices.** 女声 晓晓, 男声甲 云泽 (older, deep), 男声乙 云扬. 云健 is out.
+2. **Voices.** 女声 晓晓, 男声甲 云泽 (older, deep), 男声乙 云扬. 云健 is out. One header dropdown, 声音 / Sound on, sits immediately before Language. It lists the three personas and 关闭 / None. The chosen persona is the voice of You, or of Bot 1 in a watched game. 关闭 silences the whole table.
 3. **Who says 不要.** The player who declines the passed card. The drawer's earlier pass stays silent, because the next player may still take the card.
 4. **Which calls are spoken.** Every meld the engine can form, plus 糊了 for a win, plus that closing 不要. Discard, 没有碰, and 包子 stay silent in this slice.
 
@@ -137,7 +137,7 @@ Adults play this game. The two men need to be easy to tell apart in a short call
 | Persona | Engine id | Who | Sample |
 |---|---|---|---|
 | 女声 | `zh-CN-XiaoxiaoNeural` | Woman, warm. The only standard Mandarin woman on the keyless Edge list. | [xiaoxiao.mp3](samples/xiaoxiao.mp3) |
-| 男声甲 | `zh-CN-YunzeNeural` | 云泽. Man, about 45–50. Deep, low, documentary narrator. This is the bass seat. | Pending. See below. |
+| 男声甲 | `zh-CN-YunzeNeural` | 云泽. Man, about 45–50. Deep, low, documentary narrator. This is the bass seat. | Register stand-in: [yunjian-low.mp3](samples/yunjian-low.mp3). Not 云泽's own timbre. See below. |
 | 男声乙 | `zh-CN-YunyangNeural` | 云扬. Man, about 35, calmer and more formal, higher than 云泽. | [yunyang.mp3](samples/yunyang.mp3) |
 
 晓晓 and 云扬 say this line, at the engine's default rate and pitch:
@@ -146,21 +146,39 @@ Adults play this game. The two men need to be easy to tell apart in a short call
 
 Clips are about 6–7 seconds, 48 kbps mono MP3.
 
-云泽 does not speak on the keyless Edge endpoint. A render with that voice name returned no audio on 2026-11-01, same as 云野, 晓颜, 晓秋, and 晓睿. His preview is in the [Azure voice gallery](https://speech.microsoft.com/portal/voicegallery) under `zh-CN-YunzeNeural`: deep, confident, formal, documentary narration, with a `documentary-narration` style. The full set for his seat is rendered there (or any other dev-time Azure Speech call) and checked in as ordinary MP3s. 晓晓 and 云扬 can still be rendered with `edge-tts`. The running game plays the files and never calls a speech service.
+云泽 does not speak on the keyless Edge endpoint. A render with that voice name returned no audio again on 2026-11-01, same as 云野, 晓颜, 晓秋, and 晓睿. His own preview is in the [Azure voice gallery](https://speech.microsoft.com/portal/voicegallery) under `zh-CN-YunzeNeural`: deep, confident, formal, documentary narration, with a `documentary-narration` style. The full set for his seat is rendered there (or any other dev-time Azure Speech call) and checked in as ordinary MP3s. 晓晓 and 云扬 can still be rendered with `edge-tts`. The running game plays the files and never calls a speech service.
+
+Until that render exists, [yunjian-low.mp3](samples/yunjian-low.mp3) is a register stand-in on the same audition line. It is `zh-CN-YunjianNeural` with pitch `-60Hz`. Measured median pitch is about 95 Hz, against 云扬 at about 131 Hz and 晓晓 at about 210 Hz. It shows the bass register next to the other two clips. It is still 云健's timbre, only lower, so it does not replace 云泽 in the plan.
 
 Style for 云泽's short calls: `documentary-narration` if the default delivery is too much like long-form narration. Rate stays near 0 so 糊了 and 不要 keep their tones. Pitch stays at the voice's own low default. No extra pitch-down on top of 云泽.
 
-### Seat mapping
+### Header control
 
-Three personas, three seats. `localStorage` key `voiceSeat0` stores which persona sits at seat 0 (`xiaoxiao` by default). The other two seats take the remaining personas in the order 女声, 男声甲, 男声乙.
+One dropdown, placed in `setupHeader` as the first control inside `.settings-panel`, immediately before the Language label and `#lang-select`. Both live in `#header-settings`.
 
-| Seat | Default voice |
-|---|---|
-| 0, You (or the first bot in a watched game) | 晓晓 |
-| 1, downstream / left | 云泽 |
-| 2, upstream / right | 云扬 |
+Label text is `t('Sound on')`: 声音 in zh, Sound on in en, with the same `: ` suffix the language label uses. The select id is `sound-select`.
 
-A watched game uses the same map. The header setting is 你的声音 / Your voice, with those three labels. 声音 / Sound is a mute toggle, `localStorage` key `voiceMuted`, default unmuted. Both strings go in `src/js/translations.js` in `zh` and `en`.
+`localStorage` key `soundVoice`. Default `xiaoxiao`.
+
+| Value | zh | en | Who speaks |
+|---|---|---|---|
+| `xiaoxiao` | 晓晓 | Xiaoxiao | You, or Bot 1 in a watched game |
+| `yunze` | 云泽 | Yunze | You, or Bot 1 in a watched game |
+| `yunyang` | 云扬 | Yunyang | You, or Bot 1 in a watched game |
+| `none` | 关闭 | None | Nobody |
+
+Seat 0 is the player named You in a played game and Bot 1 in a watched game (`init` in `game.js`). The chosen persona is that seat's voice. The other two seats take the remaining personas in the order 晓晓, 云泽, 云扬.
+
+| `soundVoice` | You / Bot 1 | Seat 1, downstream | Seat 2, upstream |
+|---|---|---|---|
+| `xiaoxiao` | 晓晓 | 云泽 | 云扬 |
+| `yunze` | 云泽 | 晓晓 | 云扬 |
+| `yunyang` | 云扬 | 晓晓 | 云泽 |
+| `none` | silent | silent | silent |
+
+关闭 is the global off. There is no separate mute toggle and no second "your voice" control. Choosing 关闭 drops any clip still queued. Choosing a persona applies on the next call. The choice does not change `playerFingerprint`. A language change rebuilds the header, and `sound-select` is restored from `soundVoice`.
+
+Strings for the label and the four options go in `src/js/translations.js` in both `zh` and `en`.
 
 ## Where it hooks into the turn
 
@@ -194,7 +212,7 @@ Playback does not insert delays into `game.js`. `GAME_SPEEDS` stays the turn clo
 - If a new card name arrives while something older is still queued, drop the queued leftovers and let the clip that is already playing finish. The name of the card on the table wins. A syllable already playing finishes.
 - A human thinking between the draw and the call leaves the queue empty. That gap is fine.
 
-Browser autoplay: resume `AudioContext` inside the click on 新牌局 or 观摩机器人对局. Decode each clip once into an `AudioBuffer`. A gain node handles mute. If the context stays suspended, the bubbles and the cards still work.
+Browser autoplay: resume `AudioContext` inside the click on 新牌局 or 观摩机器人对局, and also inside the `sound-select` change when the previous value was `none`. Decode each clip once into an `AudioBuffer`. `soundVoice === 'none'` plays nothing. If the context stays suspended, the bubbles and the cards still work.
 
 Files:
 
@@ -203,7 +221,7 @@ src/audio/xiaoxiao/<clip-id>.mp3
 src/audio/yunze/<clip-id>.mp3
 src/audio/yunyang/<clip-id>.mp3
 src/js/voice_lines.js    catalog: lineId, glyph, spoken text, reading, file
-src/js/voice.js          queue, unlock, mute, seat map
+src/js/voice.js          queue, unlock, sound dropdown, seat map
 ```
 
 111 files. At the audition bitrate that is well under a megabyte. One format, MP3, so Safari and Chrome share a file. Trim only silence outside an 80 ms pad. Isolated card names and one-syllable calls should land under about 0.9 s. 糊了 under about 1.2 s. 双龙抱柱 under about 1.8 s.
