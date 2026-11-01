@@ -7,7 +7,7 @@ Spoken audio is Mandarin only. The English UI stays English. The clips say the C
 ## Settled
 
 1. **Win call.** The engine term stays 和, on the button and in the speech bubble. The clip says **糊了** (`hú le`, 了 neutral).
-2. **Voices.** 女声 晓晓, 男声甲 云泽 (older, deep), 男声乙 云扬. 云健 is out. One header dropdown, 声音 / Sound on, sits immediately before Language. It lists the three personas and 关闭 / None. The chosen persona is the voice of You, or of Bot 1 in a watched game. 关闭 silences the whole table.
+2. **Voices.** 女声 晓晓, 女声 晓萱, 男声 云扬. One header dropdown, 声音 / Sound on, sits immediately before Language. It lists the three personas and 关闭 / None. The chosen persona is the voice of You, or of Bot 1 in a watched game. 关闭 silences the whole table.
 3. **Who says 不要.** The player who declines the passed card. The drawer's earlier pass stays silent, because the next player may still take the card.
 4. **Which calls are spoken.** Every meld the engine can form, plus 糊了 for a win, plus that closing 不要. Discard, 没有碰, and 包子 stay silent in this slice.
 
@@ -37,13 +37,13 @@ Silence in this slice:
 
 ### Examples
 
-Seat 0 is 晓晓, seat 1 is 云泽, seat 2 is 云扬. That is the default mapping below.
+Seat 0 is 晓晓, seat 1 is 晓萱, seat 2 is 云扬. That is the default mapping below.
 
-**Self-drawn 绍.** Seat 1 draws 丘. 云泽 says 丘. Seat 1 forms 绍. 云泽 says 绍.
+**Self-drawn 绍.** Seat 1 draws 丘. 晓萱 says 丘. Seat 1 forms 绍. 晓萱 says 绍.
 
 **Interrupt 碰.** Seat 0 draws 仁. 晓晓 says 仁. Seat 2 forms 碰. 云扬 says 碰.
 
-**Pass, then 吃.** Seat 0 draws 生. 晓晓 says 生. Seat 0 passes. Silence. Seat 1 forms 吃. 云泽 says 吃.
+**Pass, then 吃.** Seat 0 draws 生. 晓晓 says 生. Seat 0 passes. Silence. Seat 1 forms 吃. 晓萱 says 吃.
 
 **Nobody wants it.** Seat 2 draws 土. 云扬 says 土. Seat 2 passes. Silence. Seat 0 declines the passed card. 晓晓 says 不要.
 
@@ -132,25 +132,19 @@ The keyless renderer used for the samples does not accept pinyin SSML. The first
 
 ## Voices
 
-Adults play this game. The two men need to be easy to tell apart in a short call: one older and lower, one middle-aged and clearer. Child, teen, cartoon, and dialect voices are out. 云健 (about 30–35, sports-announcer energy) is the voice this replaces.
+Adults play this game. The table is two women and one man, each on the engine's own pitch. Dialect voices and Taiwan Mandarin voices stay out, so the calls stay in mainland Mandarin.
 
 | Persona | Engine id | Who | Sample |
 |---|---|---|---|
-| 女声 | `zh-CN-XiaoxiaoNeural` | Woman, warm. The only standard Mandarin woman on the keyless Edge list. | [xiaoxiao.mp3](samples/xiaoxiao.mp3) |
-| 男声甲 | `zh-CN-YunzeNeural` | 云泽. Man, about 45–50. Deep, low, documentary narrator. This is the bass seat. | Register stand-in: [yunjian-low.mp3](samples/yunjian-low.mp3). Not 云泽's own timbre. See below. |
-| 男声乙 | `zh-CN-YunyangNeural` | 云扬. Man, about 35, calmer and more formal, higher than 云泽. | [yunyang.mp3](samples/yunyang.mp3) |
+| 女声 | `zh-CN-XiaoxiaoNeural` | 晓晓. Woman, warm. | [xiaoxiao.mp3](samples/xiaoxiao.mp3) |
+| 女声 | `zh-CN-XiaoxuanNeural` | 晓萱. Woman, cooler, about 27. | [xiaoxuan.mp3](samples/xiaoxuan.mp3) |
+| 男声 | `zh-CN-YunyangNeural` | 云扬. Man, about 35, calm and formal. | [yunyang.mp3](samples/yunyang.mp3) |
 
-晓晓 and 云扬 say this line, at the engine's default rate and pitch:
+All three say this line, at the engine's default rate and pitch:
 
 > 上。几。绍。糊了。不要。双龙抱柱。
 
-Clips are about 6–7 seconds, 48 kbps mono MP3.
-
-云泽 does not speak on the keyless Edge endpoint. A render with that voice name returned no audio again on 2026-11-01, same as 云野, 晓颜, 晓秋, and 晓睿. His own preview is in the [Azure voice gallery](https://speech.microsoft.com/portal/voicegallery) under `zh-CN-YunzeNeural`: deep, confident, formal, documentary narration, with a `documentary-narration` style. The full set for his seat is rendered there (or any other dev-time Azure Speech call) and checked in as ordinary MP3s. 晓晓 and 云扬 can still be rendered with `edge-tts`. The running game plays the files and never calls a speech service.
-
-Until that render exists, [yunjian-low.mp3](samples/yunjian-low.mp3) is a register stand-in on the same audition line. It is `zh-CN-YunjianNeural` with pitch `-60Hz`. Measured median pitch is about 95 Hz, against 云扬 at about 131 Hz and 晓晓 at about 210 Hz. It shows the bass register next to the other two clips. It is still 云健's timbre, only lower, so it does not replace 云泽 in the plan.
-
-Style for 云泽's short calls: `documentary-narration` if the default delivery is too much like long-form narration. Rate stays near 0 so 糊了 and 不要 keep their tones. Pitch stays at the voice's own low default. No extra pitch-down on top of 云泽.
+Clips are about 6–7 seconds, 48 kbps mono MP3. 晓萱's file is a different recording from 晓晓. All three are rendered with `edge-tts`. The running game plays the files and never calls a speech service.
 
 ### Header control
 
@@ -163,17 +157,17 @@ Label text is `t('Sound on')`: 声音 in zh, Sound on in en, with the same `: ` 
 | Value | zh | en | Who speaks |
 |---|---|---|---|
 | `xiaoxiao` | 晓晓 | Xiaoxiao | You, or Bot 1 in a watched game |
-| `yunze` | 云泽 | Yunze | You, or Bot 1 in a watched game |
+| `xiaoxuan` | 晓萱 | Xiaoxuan | You, or Bot 1 in a watched game |
 | `yunyang` | 云扬 | Yunyang | You, or Bot 1 in a watched game |
 | `none` | 关闭 | None | Nobody |
 
-Seat 0 is the player named You in a played game and Bot 1 in a watched game (`init` in `game.js`). The chosen persona is that seat's voice. The other two seats take the remaining personas in the order 晓晓, 云泽, 云扬.
+Seat 0 is the player named You in a played game and Bot 1 in a watched game (`init` in `game.js`). The chosen persona is that seat's voice. The other two seats take the remaining personas in the order 晓晓, 晓萱, 云扬.
 
 | `soundVoice` | You / Bot 1 | Seat 1, downstream | Seat 2, upstream |
 |---|---|---|---|
-| `xiaoxiao` | 晓晓 | 云泽 | 云扬 |
-| `yunze` | 云泽 | 晓晓 | 云扬 |
-| `yunyang` | 云扬 | 晓晓 | 云泽 |
+| `xiaoxiao` | 晓晓 | 晓萱 | 云扬 |
+| `xiaoxuan` | 晓萱 | 晓晓 | 云扬 |
+| `yunyang` | 云扬 | 晓晓 | 晓萱 |
 | `none` | silent | silent | silent |
 
 关闭 is the global off. There is no separate mute toggle and no second "your voice" control. Choosing 关闭 drops any clip still queued. Choosing a persona applies on the next call. The choice does not change `playerFingerprint`. A language change rebuilds the header, and `sound-select` is restored from `soundVoice`.
@@ -218,7 +212,7 @@ Files:
 
 ```text
 src/audio/xiaoxiao/<clip-id>.mp3
-src/audio/yunze/<clip-id>.mp3
+src/audio/xiaoxuan/<clip-id>.mp3
 src/audio/yunyang/<clip-id>.mp3
 src/js/voice_lines.js    catalog: lineId, glyph, spoken text, reading, file
 src/js/voice.js          queue, unlock, sound dropdown, seat map
@@ -237,7 +231,7 @@ A second test, in the style of `test/test_flow.js`, covers the pass rule: a fres
 
 Service worker: when the files land, add them to `ASSETS_TO_CACHE` and bump `CACHE_NAME` past `shangdaren-v17`. `cache.addAll` fails the install if any path is missing, so the list and the files ship together. The publish allowlist in `docs/plans/auto-publish.md` and the publish skill gain `src/js/voice.js`, `src/js/voice_lines.js`, and `src/audio/`. The audition clips under `docs/plans/` stay off the site.
 
-Dev-time render is a script under `tools/`, with no `package.json` dependency and nothing for the browser to load. 晓晓 and 云扬 use `edge-tts`. 云泽 uses Azure Speech. Re-render is how a voice swap happens. The running game never calls a speech service, so a table still speaks offline.
+Dev-time render is a script under `tools/`, with no `package.json` dependency and nothing for the browser to load. All three personas use `edge-tts`. Re-render is how a voice swap happens. The running game never calls a speech service, so a table still speaks offline.
 
 ## Out of this slice
 
