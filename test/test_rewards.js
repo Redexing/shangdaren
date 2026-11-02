@@ -588,6 +588,41 @@ export function runRewardTests() {
         ['doubled-up', 'special-trip', 'all-meat']
     );
 
+    // Bot Right, self-drawn 作. XIA-CE of 大, two CHI of 八九子, KOU 知可,
+    // SAO of 七, and the winning KOU 作仁. 14 Fu.
+    // self-draw 1 + doubled-up 1 + the trip of 七 is 2 = 4.
+    expectReward(
+        '[RULE-REWARD-SPECIAL-TRIP] Self-drawn win with an exposed SAO of 七 scores 4',
+        [card(6, 2)],
+        [
+            { type: 'XIA-CE', cards: cards(0, 1, 4) },
+            { type: 'CHI', cards: [card(5, 0), card(5, 2), card(5, 1)] },
+            { type: 'KOU', cards: [card(7, 1), card(7, 0)] },
+            { type: 'CHI', cards: chi(5) },
+            { type: 'SAO', cards: cards(3, 0, 3) }
+        ],
+        card(6, 1),
+        { isSelfDraw: true, isSelf: true },
+        4,
+        ['self-draw', 'doubled-up', 'special-trip']
+    );
+
+    // Same hand when the three 七 are still concealed until the winning reveal.
+    expectReward(
+        '[RULE-REWARD-SPECIAL-TRIP] Self-drawn win with a concealed SAO of 七 scores 4',
+        [card(6, 2), ...cards(3, 0, 3)],
+        [
+            { type: 'XIA-CE', cards: cards(0, 1, 4) },
+            { type: 'CHI', cards: [card(5, 0), card(5, 2), card(5, 1)] },
+            { type: 'KOU', cards: [card(7, 1), card(7, 0)] },
+            { type: 'CHI', cards: chi(5) }
+        ],
+        card(6, 1),
+        { isSelfDraw: true, isSelf: true },
+        4,
+        ['self-draw', 'doubled-up', 'special-trip']
+    );
+
     // Veggie PENG of 七 is 2 Fu. The all-veggie waiver applies. The trip adds 2.
     expectReward(
         '[RULE-REWARD-SPECIAL-TRIP] PENG of 七 scores 2 on top of all-veggie',
