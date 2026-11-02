@@ -344,11 +344,12 @@ export function runRewardTests() {
         ['special-quad']
     );
 
-    // Exposed meat quad of 化 (10) + SAO of 上 (6) + two meat kous (4) = 20 fu.
+    // Exposed meat quad of 化 (10) + SAO of 几 (6) + two meat kous (4) = 20 fu.
+    // 几 is not 上, 七, or 可, so the trip itself adds no reward.
     expectReward(
         '20 fu scores 1 reward',
         [
-            ...cards(0, 0, 3),
+            ...cards(1, 2, 3),
             ...kou(1, 0, 1),
             ...kou(0, 1, 2),
             ...chi(4),
@@ -414,6 +415,7 @@ export function runRewardTests() {
 
     // 16 all-meat red cards have to include 3-of-a-kind. Those trips stay whole,
     // so this shape is three SAO + one SAO + two KOU (28 Fu) rather than CHI splits.
+    // The SAO of 上 adds its own 2.
     expectReward(
         'All meat and all red stack',
         [
@@ -427,8 +429,8 @@ export function runRewardTests() {
         [],
         null,
         {},
-        5,
-        ['score-20', 'all-meat', 'big-red']
+        7,
+        ['score-20', 'special-trip', 'all-meat', 'big-red']
     );
 
     // Distinct CHI plus a black veggie PENG, so Doubled-up is not also scored.
@@ -516,7 +518,7 @@ export function runRewardTests() {
     // Issue #44, seed 2004406088: exposed PENG of 可, all-veggie hand, win on 子.
     // 2 Fu, so the all-veggie waiver applies. PENG of 可 adds 2 rewards.
     expectReward(
-        '[RULE-REWARD-KE-TRIP] Issue #44: PENG of 可 scores 2 on top of all-veggie',
+        '[RULE-REWARD-SPECIAL-TRIP] Issue #44: PENG of 可 scores 2 on top of all-veggie',
         [
             ...chi(5),
             ...kou(4, 1, 2),
@@ -528,12 +530,12 @@ export function runRewardTests() {
         card(5, 2),
         { isSelf: false, isSelfDraw: false },
         3,
-        ['all-veggie', 'ke-trip']
+        ['all-veggie', 'special-trip']
     );
 
     // The completing card itself is the third 可, claimed from another player.
     expectReward(
-        '[RULE-REWARD-KE-TRIP] A claimed 可 that completes the trip scores 2',
+        '[RULE-REWARD-SPECIAL-TRIP] A claimed 可 that completes the trip scores 2',
         [
             ...cards(7, 0, 2),
             ...kou(4, 1, 2),
@@ -546,13 +548,13 @@ export function runRewardTests() {
         card(7, 0),
         { isSelf: false, isSelfDraw: false },
         3,
-        ['all-veggie', 'ke-trip']
+        ['all-veggie', 'special-trip']
     );
 
     // SAO blocks the all-veggie waiver, so this hand has to reach 10 Fu.
     // Veggie SAO of 可 is 4; two meat KOU are 4; three meat CHI are 9. Total 17.
     expectReward(
-        '[RULE-REWARD-KE-TRIP] SAO of 可 scores 2 when the hand meets 10 fu',
+        '[RULE-REWARD-SPECIAL-TRIP] SAO of 可 scores 2 when the hand meets 10 fu',
         [
             ...cards(7, 0, 3),
             ...kou(0, 0, 1),
@@ -565,13 +567,13 @@ export function runRewardTests() {
         null,
         {},
         2,
-        ['ke-trip']
+        ['special-trip']
     );
 
     // PENG of 上 is 3 Fu. The fourth 上 is not in the hand, so special-quad stays off.
-    // Two identical CHI of 丘乙几 are Doubled-up. All meat. No 可 trip.
+    // Two identical CHI of 丘乙几 are Doubled-up. All meat. The trip adds its own 2.
     expectReward(
-        '[RULE-REWARD-KE-TRIP] PENG of 上 does not score the 可 trip reward',
+        '[RULE-REWARD-SPECIAL-TRIP] PENG of 上 scores 2',
         [
             ...chi(1),
             ...chi(1),
@@ -582,13 +584,13 @@ export function runRewardTests() {
         [{ type: 'PENG', cards: cards(0, 0, 3) }],
         null,
         {},
-        2,
-        ['doubled-up', 'all-meat']
+        4,
+        ['doubled-up', 'special-trip', 'all-meat']
     );
 
-    // PENG of 七 is the other quad character. A trip of 七 is not the 可 reward.
+    // Veggie PENG of 七 is 2 Fu. The all-veggie waiver applies. The trip adds 2.
     expectReward(
-        '[RULE-REWARD-KE-TRIP] PENG of 七 does not score the 可 trip reward',
+        '[RULE-REWARD-SPECIAL-TRIP] PENG of 七 scores 2 on top of all-veggie',
         [
             ...chi(4),
             ...chi(5),
@@ -599,14 +601,52 @@ export function runRewardTests() {
         [{ type: 'PENG', cards: cards(3, 0, 3) }],
         null,
         {},
-        1,
-        ['all-veggie']
+        3,
+        ['all-veggie', 'special-trip']
+    );
+
+    // Meat SAO of 上 is 6. Two meat KOU are 4. Two meat CHI are 6. One veggie CHI is 0. Total 16.
+    expectReward(
+        '[RULE-REWARD-SPECIAL-TRIP] SAO of 上 scores 2',
+        [
+            ...cards(0, 0, 3),
+            ...kou(1, 0, 1),
+            ...kou(2, 0, 1),
+            ...chi(1),
+            ...chi(2),
+            ...chi(4)
+        ],
+        [],
+        null,
+        {},
+        2,
+        ['special-trip']
+    );
+
+    // Each character adds its own 2. PENG of 上 is 3 Fu, PENG of 可 is 2 Fu.
+    // Two meat KOU (4) and two meat CHI (6) bring the hand to 15 Fu.
+    expectReward(
+        '[RULE-REWARD-SPECIAL-TRIP] PENG of 上 and PENG of 可 each add 2',
+        [
+            ...kou(0, 1, 2),
+            ...kou(1, 0, 1),
+            ...chi(1),
+            ...chi(2)
+        ],
+        [
+            { type: 'PENG', cards: cards(0, 0, 3) },
+            { type: 'PENG', cards: cards(7, 0, 3) }
+        ],
+        null,
+        {},
+        4,
+        ['special-trip', 'special-trip']
     );
 
     // Three CHI of 可知礼 hold three 可, and floor(3/2) identical CHI is Doubled-up.
     // None of those 可 form a PENG or SAO.
     expectReward(
-        '[RULE-REWARD-KE-TRIP] Three 可 split across CHI do not score the trip reward',
+        '[RULE-REWARD-SPECIAL-TRIP] Three 可 split across CHI do not score the trip reward',
         [
             ...chi(7),
             ...chi(7),
@@ -623,7 +663,7 @@ export function runRewardTests() {
 
     // Veggie XIA-CE of 可 is 6. Two meat KOU are 4. Three meat CHI are 9. Total 19.
     expectReward(
-        '[RULE-REWARD-KE-TRIP] Four 可 stays special-quad and is not also a trip',
+        '[RULE-REWARD-SPECIAL-TRIP] Four 可 stays special-quad and is not also a trip',
         [
             ...kou(0, 0, 1),
             ...kou(1, 0, 1),
@@ -640,7 +680,7 @@ export function runRewardTests() {
 
     // Exposed quad adds one card to the 16-card count. 上 is red; 可 is black.
     expectReward(
-        '[RULE-REWARD-KE-TRIP] PENG of 可 stacks with a quad of 上',
+        '[RULE-REWARD-SPECIAL-TRIP] PENG of 可 stacks with a quad of 上',
         [
             ...kou(3, 0, 1),
             ...kou(4, 0, 1),
@@ -654,7 +694,7 @@ export function runRewardTests() {
         null,
         {},
         4,
-        ['special-quad', 'ke-trip']
+        ['special-quad', 'special-trip']
     );
 
     {

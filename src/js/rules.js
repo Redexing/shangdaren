@@ -17,7 +17,8 @@ const VEGGIE_WAIVER_BLOCKING_TYPES = new Set([
     'TWO-DRAGONS-TUSSLING'
 ]);
 
-// Four of a kind of these characters is worth two rewards. No other character qualifies.
+// 上, 七, and 可. Four of a kind is one special-quad bonus worth 2.
+// A PENG or SAO of each of these characters is its own special-trip bonus worth 2.
 export const REWARD_QUAD_CHARACTERS = ['上', '七', '可'];
 
 const REWARD_WEIGHTS = {
@@ -29,8 +30,8 @@ const REWARD_WEIGHTS = {
     'two-dragons-tussling': 3,
     'doubled-up': 1,
     'special-quad': 2,
-    // [RULE-REWARD-KE-TRIP]: PENG or SAO of 可. Four 可 stays special-quad.
-    'ke-trip': 2,
+    // [RULE-REWARD-SPECIAL-TRIP]: one PENG or SAO of 上, 七, or 可. Each character adds its own 2.
+    'special-trip': 2,
     'all-meat': 1,
     'big-red': 3,
     'big-black': 4
@@ -514,7 +515,7 @@ export class Rules {
         const doubledUp = this.doubledUpPairs(partition);
         for (let i = 0; i < doubledUp; i++) reasons.push('doubled-up');
         if (this.hasRewardQuad(allCards)) reasons.push('special-quad');
-        if (this.hasKeTrip(partition)) reasons.push('ke-trip');
+        for (let i = 0; i < this.specialTripCount(partition); i++) reasons.push('special-trip');
         if (allCards.length > 0 && allCards.every(c => this.isMeat(c.suiteIndex))) reasons.push('all-meat');
         if (allCards.length > 0 && allCards.every(c => c.isRed)) reasons.push('big-red');
         if (allCards.length > 0 && allCards.every(c => !c.isRed)) reasons.push('big-black');
@@ -551,17 +552,24 @@ export class Rules {
     }
 
     /**
-     * [RULE-REWARD-KE-TRIP]: a PENG or SAO of 可 in the winning partition
-     * scores 2 rewards. A concealed 3-of-a-kind is SAO. A claimed one is PENG.
-     * Four 可 is special-quad and is not also this reward. 上 and 七 trips
-     * do not qualify. Three 可 split across CHI are not a trip.
+     * [RULE-REWARD-SPECIAL-TRIP]: each PENG or SAO of 上, 七, or 可 in the
+     * winning partition scores 2 rewards. A concealed 3-of-a-kind is SAO.
+     * A claimed one is PENG. Four of that character stays special-quad and
+     * is not also a trip. Copies split across CHI are not a trip.
+     * Two of these characters each add their own 2.
      */
-    static hasKeTrip(partition) {
-        return (partition || []).some(meld => {
-            if (!meld || (meld.type !== 'PENG' && meld.type !== 'SAO')) return false;
+    static specialTripCount(partition) {
+        const found = new Set();
+        (partition || []).forEach(meld => {
+            if (!meld || (meld.type !== 'PENG' && meld.type !== 'SAO')) return;
             const cards = meld.cards || [];
-            return cards.length === 3 && cards.every(c => c.character === '可');
+            if (cards.length !== 3) return;
+            const character = cards[0].character;
+            if (!REWARD_QUAD_CHARACTERS.includes(character)) return;
+            if (!cards.every(c => c.character === character)) return;
+            found.add(character);
         });
+        return found.size;
     }
 
     /**
