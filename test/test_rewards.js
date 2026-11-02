@@ -513,6 +513,150 @@ export function runRewardTests() {
         );
     }
 
+    // Issue #44, seed 2004406088: exposed PENG of 可, all-veggie hand, win on 子.
+    // 2 Fu, so the all-veggie waiver applies. PENG of 可 adds 2 rewards.
+    expectReward(
+        '[RULE-REWARD-KE-TRIP] Issue #44: PENG of 可 scores 2 on top of all-veggie',
+        [
+            ...chi(5),
+            ...kou(4, 1, 2),
+            ...chi(3),
+            ...chi(4),
+            card(5, 0)
+        ],
+        [{ type: 'PENG', cards: cards(7, 0, 3) }],
+        card(5, 2),
+        { isSelf: false, isSelfDraw: false },
+        3,
+        ['all-veggie', 'ke-trip']
+    );
+
+    // The completing card itself is the third 可, claimed from another player.
+    expectReward(
+        '[RULE-REWARD-KE-TRIP] A claimed 可 that completes the trip scores 2',
+        [
+            ...cards(7, 0, 2),
+            ...kou(4, 1, 2),
+            ...kou(5, 0, 1),
+            ...chi(3),
+            ...chi(4),
+            ...chi(6)
+        ],
+        [],
+        card(7, 0),
+        { isSelf: false, isSelfDraw: false },
+        3,
+        ['all-veggie', 'ke-trip']
+    );
+
+    // SAO blocks the all-veggie waiver, so this hand has to reach 10 Fu.
+    // Veggie SAO of 可 is 4; two meat KOU are 4; three meat CHI are 9. Total 17.
+    expectReward(
+        '[RULE-REWARD-KE-TRIP] SAO of 可 scores 2 when the hand meets 10 fu',
+        [
+            ...cards(7, 0, 3),
+            ...kou(0, 0, 1),
+            ...kou(1, 0, 1),
+            ...chi(0),
+            ...chi(1),
+            ...chi(2)
+        ],
+        [],
+        null,
+        {},
+        2,
+        ['ke-trip']
+    );
+
+    // PENG of 上 is 3 Fu. The fourth 上 is not in the hand, so special-quad stays off.
+    // Two identical CHI of 丘乙几 are Doubled-up. All meat. No 可 trip.
+    expectReward(
+        '[RULE-REWARD-KE-TRIP] PENG of 上 does not score the 可 trip reward',
+        [
+            ...chi(1),
+            ...chi(1),
+            ...chi(2),
+            ...kou(0, 1, 2),
+            ...kou(2, 0, 1)
+        ],
+        [{ type: 'PENG', cards: cards(0, 0, 3) }],
+        null,
+        {},
+        2,
+        ['doubled-up', 'all-meat']
+    );
+
+    // PENG of 七 is the other quad character. A trip of 七 is not the 可 reward.
+    expectReward(
+        '[RULE-REWARD-KE-TRIP] PENG of 七 does not score the 可 trip reward',
+        [
+            ...chi(4),
+            ...chi(5),
+            ...chi(6),
+            ...kou(4, 0, 1),
+            ...kou(5, 0, 1)
+        ],
+        [{ type: 'PENG', cards: cards(3, 0, 3) }],
+        null,
+        {},
+        1,
+        ['all-veggie']
+    );
+
+    // Three CHI of 可知礼 hold three 可, and floor(3/2) identical CHI is Doubled-up.
+    // None of those 可 form a PENG or SAO.
+    expectReward(
+        '[RULE-REWARD-KE-TRIP] Three 可 split across CHI do not score the trip reward',
+        [
+            ...chi(7),
+            ...chi(7),
+            ...chi(3),
+            ...kou(4, 0, 1),
+            ...kou(5, 0, 1)
+        ],
+        [{ type: 'CHI', cards: chi(7) }],
+        null,
+        {},
+        2,
+        ['all-veggie', 'doubled-up']
+    );
+
+    // Veggie XIA-CE of 可 is 6. Two meat KOU are 4. Three meat CHI are 9. Total 19.
+    expectReward(
+        '[RULE-REWARD-KE-TRIP] Four 可 stays special-quad and is not also a trip',
+        [
+            ...kou(0, 0, 1),
+            ...kou(1, 0, 1),
+            ...chi(0),
+            ...chi(1),
+            ...chi(2)
+        ],
+        [{ type: 'XIA-CE', cards: cards(7, 0, 4) }],
+        null,
+        {},
+        2,
+        ['special-quad']
+    );
+
+    // Exposed quad adds one card to the 16-card count. 上 is red; 可 is black.
+    expectReward(
+        '[RULE-REWARD-KE-TRIP] PENG of 可 stacks with a quad of 上',
+        [
+            ...kou(3, 0, 1),
+            ...kou(4, 0, 1),
+            ...chi(5),
+            ...chi(6)
+        ],
+        [
+            { type: 'PENG', cards: cards(7, 0, 3) },
+            { type: 'XIA-CE', cards: cards(0, 0, 4) }
+        ],
+        null,
+        {},
+        4,
+        ['special-quad', 'ke-trip']
+    );
+
     {
         const game = createBareGame();
         const stateHand = [
