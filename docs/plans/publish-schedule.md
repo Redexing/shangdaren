@@ -8,7 +8,7 @@ timezone: America/Los_Angeles
 cadence: weekly
 weekday: Sunday
 time: "18:00"
-next_publish: 2026-11-01T18:00
+next_publish: 2026-11-08T18:00
 hold: false
 ```
 
