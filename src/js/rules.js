@@ -29,6 +29,8 @@ const REWARD_WEIGHTS = {
     'two-dragons-tussling': 3,
     'doubled-up': 1,
     'special-quad': 2,
+    // [RULE-REWARD-KE-TRIP]: PENG or SAO of 可. Four 可 stays special-quad.
+    'ke-trip': 2,
     'all-meat': 1,
     'big-red': 3,
     'big-black': 4
@@ -512,6 +514,7 @@ export class Rules {
         const doubledUp = this.doubledUpPairs(partition);
         for (let i = 0; i < doubledUp; i++) reasons.push('doubled-up');
         if (this.hasRewardQuad(allCards)) reasons.push('special-quad');
+        if (this.hasKeTrip(partition)) reasons.push('ke-trip');
         if (allCards.length > 0 && allCards.every(c => this.isMeat(c.suiteIndex))) reasons.push('all-meat');
         if (allCards.length > 0 && allCards.every(c => c.isRed)) reasons.push('big-red');
         if (allCards.length > 0 && allCards.every(c => !c.isRed)) reasons.push('big-black');
@@ -545,6 +548,20 @@ export class Rules {
             if (Object.prototype.hasOwnProperty.call(counts, c.character)) counts[c.character]++;
         });
         return REWARD_QUAD_CHARACTERS.some(ch => counts[ch] >= 4);
+    }
+
+    /**
+     * [RULE-REWARD-KE-TRIP]: a PENG or SAO of 可 in the winning partition
+     * scores 2 rewards. A concealed 3-of-a-kind is SAO. A claimed one is PENG.
+     * Four 可 is special-quad and is not also this reward. 上 and 七 trips
+     * do not qualify. Three 可 split across CHI are not a trip.
+     */
+    static hasKeTrip(partition) {
+        return (partition || []).some(meld => {
+            if (!meld || (meld.type !== 'PENG' && meld.type !== 'SAO')) return false;
+            const cards = meld.cards || [];
+            return cards.length === 3 && cards.every(c => c.character === '可');
+        });
     }
 
     /**

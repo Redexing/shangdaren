@@ -79,6 +79,7 @@ Rewards stack additively and are awarded only to the player who wins with HARMON
 | TWO-DRAGONS-TUSSLING / 双龙抱柱 (upgraded from HALF-DRAGON / HALF-SNAKE) | `two-dragons-tussling` | 3 |
 | Doubled-up / 板儿高: each pair of identical CHI (same suit), in HAND or EXPOSED | `doubled-up` | 1 |
 | Four-of-a-kind of 上, 七, or 可 | `special-quad` | 2 |
+| Three 可 as PENG or SAO | `ke-trip` | 2 |
 | All Meat cards | `all-meat` | 1 |
 | Big Red (all Red cards) | `big-red` | 3 |
 | Big Black (all Black cards) | `big-black` | 4 |
@@ -142,6 +143,7 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 - **`[RULE-HARMONY-EXACT-2-KOU]`**: The winning partition must contain exactly 2 KOU melds (HALF-DRAGON and HALF-SNAKE count as 1 KOU).
 - **`[RULE-HARMONY-SCORE-THRESHOLD]`**: Total score must be $\ge 10$ Fu. This threshold is waived when every card in the winning set is a Veggie card and the winning partition contains neither a SAO nor a meld that includes a 4-of-a-kind. SAO, XIA-CE, KAI-ZAO, DRAGON, SNAKE, HALF-DRAGON, HALF-SNAKE, and TWO-DRAGONS-TUSSLING each remove the waiver, whether that meld is in HAND or EXPOSED. PENG, CHI, and KOU do not. A hand that loses the waiver must still reach 10 Fu and meet every other Harmony requirement, including at least 1 reward (大). The all-veggie reward itself is unchanged.
 - **`[RULE-REWARD-DOUBLED-UP]`**: Each pair of identical CHI melds in the winning partition scores 1 reward (大), called 板儿高 (Doubled-up). Two CHI are identical when they are the same suit. CHI in HAND and CHI in EXPOSED both count, including a CHI completed by the winning card. Only melds that remain CHI in the winning partition count: `[RULE-SUIT-MELD-PRIORITY]` keeps a 3-of-a-kind or 4-of-a-kind whole, so those cards are not CHI. The reward stacks with every other reward and does not waive the 10 Fu threshold.
+- **`[RULE-REWARD-KE-TRIP]`**: A 3-of-a-kind of 可 in the winning partition scores 2 rewards (大). A claimed trip is PENG. A self-drawn or still-concealed trip is SAO. The reward stacks with every other reward, including `special-quad`, and does not waive the 10 Fu threshold. Four 可 remains `special-quad` only and does not also score this reward. A 3-of-a-kind of 上 or 七 does not score it. Three 可 that sit in CHI melds, because an exposed meld already locked a copy, are not a trip.
 - **`[RULE-HARMONY-MIN-REWARDS]`**: The winning hand must score at least 1 Reward (大). A hand meeting all other criteria with 0 rewards cannot win and must continue playing. If a subsequent mandatory meld leaves no legal discard, BAO-ZI is triggered.
 - **`[RULE-REWARDS-WINNER-ONLY]`**: In a HARMONY win, rewards are credited only to the player declaring HARMONY. In a BAO-ZI game, each of the two winning players receives 1 reward (大). Non-winners receive 0 rewards.
 
