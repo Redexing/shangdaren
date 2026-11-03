@@ -11,13 +11,14 @@ Otherwise read `docs/game.md` before judging. Section 5 is the only source of `[
 ## Browser
 
 1. Open the task URL in your own browser at a viewport **wider than 800px** (1280×900 is enough). At 800px and below the page is a carousel and two seats are off screen.
-2. `sw.js` is cache-first and may still be holding a slow `src/js/constants.js`. On this page, unregister every service worker, delete every Cache Storage entry, and reload. Confirm the next draw follows `Game started` in well under a second. If the table still waits on the production delays (about 0.5–3 seconds), return `status: "incomplete"` and set `error` to `stale cached constants`. Do not keep playing that hand.
+2. `sw.js` is cache-first and may still be holding a slow `src/js/constants.js`. On this page, unregister every service worker, delete every Cache Storage entry, and reload. The page does not deal or draw until Watch is clicked, so do not judge speed yet.
 3. Set `#lang-select` to `en`, then `#sound-select` to `none`.
-4. Click `#btn-watch` (Watch Bot Game). Do not click `#btn-new-game`. Watch mode deals three bots and shows every HAND face up.
-5. Wait for an ending: a blocking alert, or a console line containing `declares HARMONY`, `is BAO-ZI`, or `Deck empty. Draw game.` `main.js` calls `alert` on game over. The alert text is `Game Over! Winner: ...` or `Game Over! ... is BAO-ZI (no cards to discard). Everyone else wins!` A draw says `Game Over! Winner: None`.
-6. If three minutes pass with no new console line, or five minutes pass with no ending, treat the hand as stuck and capture it.
-7. Record the alert text, then dismiss the alert. The board underneath is the final table. Screenshot `#players-area` and `#dashboard` together before any later click replaces them. If one image cannot fit the table, capture the whole page in parts; that set is still this game's board. Save the image or images in the output directory.
-8. Save the console slice from this hand's `[DECK] Initializing with seed:` through the terminal line. `game.log` prints each line once, and `main.js` prints it again with a `[GAME]` prefix. Keep one copy. Also keep any `console.error` from this hand.
+4. Click `#btn-watch` (Watch Bot Game) once. Do not click `#btn-new-game`. Watch mode deals three bots and shows every HAND face up.
+5. Time that same hand. `Game started` should be followed by the draw in well under a second. If the gap is still about 0.5–3 seconds, the page is running the cached production delays. Return `status: "incomplete"` and set `error` to `stale cached constants`. Do not click Watch again.
+6. Wait for an ending: a blocking alert, or a console line containing `declares HARMONY`, `is BAO-ZI`, or `Deck empty. Draw game.` `main.js` calls `alert` on game over. The alert text is `Game Over! Winner: ...` or `Game Over! ... is BAO-ZI (no cards to discard). Everyone else wins!` A draw says `Game Over! Winner: None`.
+7. If three minutes pass with no new console line, or five minutes pass with no ending, treat the hand as stuck and capture it.
+8. Record the alert text, then dismiss the alert. The board underneath is the final table. Screenshot `#players-area` and `#dashboard` together before any later click replaces them. If one image cannot fit the table, capture the whole page in parts and save every part in the output directory. Name them `board-1.png`, `board-2.png`, and so on, in capture order. A single image is `board.png`. That set is still this one game's board.
+9. Save the console slice from this hand's `[DECK] Initializing with seed:` through the terminal line. `game.log` prints each line once, and `main.js` prints it again with a `[GAME]` prefix. Keep one copy. Also keep any `console.error` from this hand.
 
 Each seat shows HAND, EXPOSED (with a meld label), DISCARD, PASSED, card count, and points. Points are a clue. The rule text decides whether the score is legal.
 
@@ -47,4 +48,4 @@ Use `bug-free` only when the hand ended in HARMONY, BAO-ZI, or an empty deck and
 
 Use `incomplete` when the hand did not end and no rule id fits, or when the browser failed. Set `error` to the reason. A stuck hand that does contradict a named rule is `with-bugs`, with `ending: "stuck"`.
 
-Screenshot paths in `screenshots` are relative to the run folder and must exist on disk. Return the finding to the main agent. Then stop.
+`screenshots` lists every part of this board, relative to the run folder: `games/<index>/board.png`, or `games/<index>/board-1.png`, `games/<index>/board-2.png`, and so on. Each path must exist on disk. Return the finding to the main agent. Then stop.
