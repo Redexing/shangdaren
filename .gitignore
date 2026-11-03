@@ -10,3 +10,6 @@ shangdaren_game_pwa.zip
 # Dependencies
 node_modules/
 package-lock.json
+
+# Browser QA reports from the find-bugs-qa skill
+qa-runs/
