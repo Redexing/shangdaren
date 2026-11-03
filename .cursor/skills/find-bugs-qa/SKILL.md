@@ -81,17 +81,18 @@ The main agent clusters those findings. It does not open the game again to re-ju
 
 When you accept a finding:
 
-- Keep a violation only when its rule id is a `[RULE-...]` label in `docs/game.md` section 5 and the finding includes a screenshot file that exists.
-- Drop a violation that fails that check. If none remain and the hand ended in HARMONY, BAO-ZI, or an empty deck, count the game bug-free. Otherwise count it incomplete.
-- A game the subagent marked with bugs, with at least one kept violation, counts once as **with bugs** even when it also violated other rules. It may enter each matching cluster.
-- A game the subagent marked bug-free, with a real ending, stays bug-free.
+- Keep a violation when its rule id is a `[RULE-...]` label in `docs/game.md` section 5 and at least one screenshot path in that finding exists on disk.
+- If the finding names a section-5 rule and no screenshot path exists on disk, the break still stands. Count that game **incomplete**. Name the claimed rule ids and keep the console excerpt in the incomplete note. Do not count the game bug-free, and do not put it in a cluster. A cluster sample needs a board image.
+- Drop a violation whose rule id is not in section 5. If every claimed id was invalid and the hand ended in HARMONY, BAO-ZI, or an empty deck, count the game bug-free. If every claimed id was invalid and the hand did not end, count it incomplete.
+- A game with at least one kept violation counts once as **with bugs**, even when it also violated other rules. It may enter each matching cluster.
+- A game the subagent marked bug-free, with a real ending and no section-5 claim, stays bug-free.
 - A stuck hand with no kept violation is incomplete.
 
 ## Report
 
 Cluster by rule id. The cluster size is how many games kept a violation of that rule. Show **at most 3 samples** per cluster. Three is the cap, not a target. Choose the three whose seed, board, and log lines make the contradiction easiest to check.
 
-Copy each chosen screenshot into the run folder as `game-<index>.png`. The same image may illustrate that game in every cluster that selected it. Delete every other screenshot under `games/`. The report and `qa-runs/` must not contain a fourth sample for any rule. Leave each `finding.json` in place so the counts can be checked.
+Copy each chosen board into the run folder without collapsing its parts. One image becomes `game-<index>.png`. A board captured in parts becomes `game-<index>-1.png`, `game-<index>-2.png`, and so on, in capture order. List every part under that one sample. The same set may illustrate that game in every cluster that selected it. Delete every screenshot under `games/` that is not part of a chosen sample. The report and `qa-runs/` must not contain a fourth sample for any rule. Leave each `finding.json` in place so the counts can be checked.
 
 Write `qa-runs/<UTC-timestamp>/report.md`. Follow `references/report-template.md`. Do not commit `qa-runs/`.
 

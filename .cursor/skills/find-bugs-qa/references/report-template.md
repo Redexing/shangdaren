@@ -58,4 +58,4 @@ Showing <1, 2, or 3> of N.
 - Tokens: `<total for the main agent and the subagents, or "not exposed by this runtime">`
 ```
 
-When a board needs more than one image, list those images under that sample only. They are still one sample.
+When a board needs more than one image, list `game-<index>-1.png`, `game-<index>-2.png`, and the rest under that sample only. They are still one sample.
