@@ -19,6 +19,7 @@ Played = bug-free + with bugs + incomplete.
 
 Branch: `<branch>`
 Constants: production delays, or `GAME_SPEEDS` at 40ms (local, not committed)
+Execution: parallel (each subagent had its own browser) or one at a time (shared browser)
 
 ## Clusters
 
@@ -53,7 +54,8 @@ Showing <1, 2, or 3> of N.
 - Started: `<YYYY-MM-DD HH:MM:SS UTC>`
 - Finished: `<YYYY-MM-DD HH:MM:SS UTC>`
 - Wall time: `<duration>`
-- Tokens: `<total, or "not exposed by this runtime">`
+- Execution: `<parallel or one at a time, and why>`
+- Tokens: `<total for the main agent and the subagents, or "not exposed by this runtime">`
 ```
 
 When a board needs more than one image, list those images under that sample only. They are still one sample.

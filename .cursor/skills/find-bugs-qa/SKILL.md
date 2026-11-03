@@ -1,8 +1,9 @@
 ---
 name: find-bugs-qa
 description: >-
-  Play watched three-bot Shangdaren games in the browser and report rule
-  violations against docs/game.md. Invoke only with /find-bugs-qa.
+  Orchestrate watched three-bot Shangdaren games and report rule violations
+  against docs/game.md. The main agent prepares each game and a subagent
+  plays it. Invoke only with /find-bugs-qa.
 disable-model-invocation: true
 ---
 
@@ -12,19 +13,29 @@ Run this skill only when the user explicitly invokes `/find-bugs-qa`. Do not sta
 
 The deliverable is one report. Do not open a GitHub issue or a pull request unless the same invocation asks for that.
 
+## Who does what
+
+The agent that loaded this skill is the **main agent**. It prepares the run, sends one self-contained task per game, waits for every subagent, and writes the report. It does not play a hand and it does not judge a table from its own browser.
+
+A **subagent** plays exactly one watched game, decides whether that table violates `docs/game.md`, and returns a finding. The procedure it must follow is `references/subagent-brief.md`. A subagent does not see this conversation, so the main agent puts the brief and the per-game fields in the task prompt.
+
+Spawn each subagent in this same workspace so its screenshot and `finding.json` land in `qa-runs/`. One game per subagent. Do not send a second game to a subagent that is still playing, and do not resume a subagent onto another game while its browser still shows the previous table.
+
 ## How many games
 
 Play **100** games unless the invoking message states a positive integer as the number of games to play. Use that integer. Ignore ports, years, rule numbers, and other figures that are not a game count.
 
 ## What counts as a bug
 
-Read `docs/game.md` before the first game. Section 5 is the rule index. Sections 2–4 define the deck, piles, melds, and points those rules use.
+Read `docs/game.md` before dispatching. Section 5 is the rule index. Sections 2–4 define the deck, piles, melds, and points those rules use.
 
-A bug is a finished or stuck table whose board or browser console contradicts one named `[RULE-...]` id in section 5. Quote that id. If no id fits, the game is bug-free. Timing changes, speech bubbles, voice, layout, and uncertain readings are not bugs.
+A bug is a finished or stuck table whose board or browser console contradicts one named `[RULE-...]` id in section 5. The subagent must quote that id. If no id fits, the game is bug-free. Timing changes, speech bubbles, voice, layout, and uncertain readings are not bugs.
 
 `how-to.html`, `about.html`, and `docs/archived/` are not the spec when they disagree with `docs/game.md`.
 
-## Speed up the watched game
+## Prepare the run
+
+Do this once, before any game subagent starts.
 
 Watched games step on `GAME_SPEEDS` in `src/js/constants.js`. The production values (about 0.5–3 seconds) make a 100-game run too slow to watch.
 
@@ -34,60 +45,55 @@ Watched games step on `GAME_SPEEDS` in `src/js/constants.js`. The production val
 
 Keep every delay greater than 0. A zero delay can reorder the turn timers.
 
-`sw.js` is cache-first and caches `src/js/constants.js`. Before the batch, in the page:
+Serve this checkout over HTTP. `file://` cannot load the modules. Prefer `http://127.0.0.1:8000/` from `python3 -m http.server 8000 --bind 0.0.0.0` when that port is this checkout. Leave the server running until the report is written.
 
-1. Unregister every service worker.
-2. Delete every Cache Storage entry.
-3. Reload.
+Create `qa-runs/<UTC-timestamp>/games/`. Record the wall-clock start in UTC after the browser check below, before game 1.
 
-Confirm the next draw follows `Game started` in well under a second. If the table still waits on the production delays, stop. A run against the cached slow script is invalid.
+## Parallel or one at a time
 
-## Play each game in the browser
+Subagents may play at the same time only when each one has its own browser. A shared desktop or a single shared browser subagent is one session: the next Watch click would replace the table another game is using.
 
-Use the session's browser tools. Do not replace this with `npm test` or a Node simulation. If no browser tool is available, stop and say so. Do not invent a report.
+If you already know the runtime gives every subagent a separate browser, run the games concurrently. Fill only as many browsers as the runtime can keep open, and start another game when one of those browsers is free.
 
-1. Serve this checkout over HTTP. `file://` cannot load the modules. Prefer `http://127.0.0.1:8000/` from `python3 -m http.server 8000 --bind 0.0.0.0` when that port is this checkout.
-2. Open the game at a viewport **wider than 800px** (1280×900 is enough). At 800px and below the page becomes a carousel and two seats are off screen.
-3. Set `#lang-select` to `en`, then `#sound-select` to `none`. English labels match the spec. Silence keeps voice playback out of the way.
-4. Record the wall-clock start time in UTC.
+If you already know they share one browser, run one subagent to completion, wait for its finding, then send the next game. On a runtime with a single shared browser subagent, reuse that session for the next game only after its finding is back and the previous table is no longer needed.
 
-For each game:
+When you are unsure, decide with a probe before game 1. Launch two subagents together. Give each `references/subagent-brief.md` and a different URL: `http://127.0.0.1:8000/?probe=A` and `http://127.0.0.1:8000/?probe=B`. Each one only opens that URL and returns the URL it actually loaded. Do not click Watch.
 
-1. Mark the console so this hand is separable from the previous one.
-2. Click `#btn-watch` (Watch Bot Game). Do not click `#btn-new-game`. Watch mode deals three bots and shows every HAND face up.
-3. Wait until the page reaches an ending or gives up. An ending is a blocking alert, or a console line containing one of:
-   - `declares HARMONY`
-   - `is BAO-ZI`
-   - `Deck empty. Draw game.`
-   `main.js` calls `alert` on game over. The alert text is `Game Over! Winner: ...` or `Game Over! ... is BAO-ZI (no cards to discard). Everyone else wins!` A draw says `Game Over! Winner: None`.
-4. If three minutes pass with no new console line, or five minutes pass with no ending, the hand is stuck. Capture it, then go on. The next `#btn-watch` starts a fresh game and cancels the old timers.
-5. Write down the alert text and dismiss the alert. The board underneath is the final table. Screenshot it before the next Watch click, which replaces it. Capture `#players-area` and `#dashboard` together. If one image cannot fit the table, capture the whole page in parts and keep that set as the one board for this game.
-6. Save the console slice from this hand's `[DECK] Initializing with seed:` through the terminal line. `game.log` prints each line once, and `main.js` prints it again with a `[GAME]` prefix. Keep one copy. Also keep any `console.error` from this hand.
+- Both return their own probe URL: browsers are independent. Play the batch concurrently, within the number of browsers the runtime can keep open.
+- They return the same URL, one fails to open a page, or the runtime has only one browser subagent: play one game at a time.
+- Neither can open a browser: stop. Do not invent a report, and do not replace the browser with `npm test` or a Node simulation.
 
-Each seat shows HAND, EXPOSED (with a meld label), DISCARD, PASSED, card count, and points. Points are a clue. The rule text decides whether the score is legal.
+Probe games do not count toward the requested number.
 
-## Judge, then cluster
+## Dispatch and wait
 
-Judge from the saved board and the console slice. A game with at least one named rule violation counts as **with bugs**, even if it never reached HARMONY, BAO-ZI, or an empty deck. A game that ends one of those three ways with no violation is **bug-free**. A game that neither ends nor supports a named rule is **incomplete**.
+For each game index from 1 to the requested count, the task prompt contains:
 
-One game can violate more than one rule. Count the game once in "with bugs". It may contribute one candidate to each matching cluster.
+- the path to `references/subagent-brief.md`, and the instruction to follow it for this one game
+- the game index and the requested total
+- the game URL (no probe query)
+- the output directory `qa-runs/<UTC-timestamp>/games/<index>/`
+- the same bug definition as above, including the path `docs/game.md`
 
-Cluster by rule id. The cluster size is how many games violated that rule. Show **at most 3 samples** in the report. Three is the cap, not a target. Choose the three whose seed, board, and log lines make the contradiction easiest to check.
+Then wait. Every requested game needs a finding before you write the report. A subagent that fails without `finding.json` is an incomplete game: record the error and keep going with the games that are still outstanding. Stop launching new games only when the server or the browser runtime cannot continue. Wait for subagents that are already playing, then report with played set to the number of findings you actually have.
 
-You may screenshot every buggy game while it is on screen. Before writing the report, delete every image and log excerpt that was not chosen. A game chosen for any of its clusters stays, and that same board may appear in each cluster that selected it. The report and `qa-runs/` must not contain a fourth sample for any rule.
+The main agent clusters those findings. It does not open the game again to re-judge a hand.
 
-Each sample has:
+When you accept a finding:
 
-- the game index and the deck seed
-- one sentence on what the rule requires and what this table did
-- the final board screenshot (or the part-set for that one board)
-- the relevant console lines: the seed line, the lines that show the bad action, and the terminal line when there is one
-
-If the contradiction is only on the board, say that and still quote the seed line and the terminal line.
+- Keep a violation only when its rule id is a `[RULE-...]` label in `docs/game.md` section 5 and the finding includes a screenshot file that exists.
+- Drop a violation that fails that check. If none remain and the hand ended in HARMONY, BAO-ZI, or an empty deck, count the game bug-free. Otherwise count it incomplete.
+- A game the subagent marked with bugs, with at least one kept violation, counts once as **with bugs** even when it also violated other rules. It may enter each matching cluster.
+- A game the subagent marked bug-free, with a real ending, stays bug-free.
+- A stuck hand with no kept violation is incomplete.
 
 ## Report
 
-Write `qa-runs/<UTC-timestamp>/report.md` and put the sample images in that same folder. Follow `references/report-template.md`. Do not commit `qa-runs/`.
+Cluster by rule id. The cluster size is how many games kept a violation of that rule. Show **at most 3 samples** per cluster. Three is the cap, not a target. Choose the three whose seed, board, and log lines make the contradiction easiest to check.
+
+Copy each chosen screenshot into the run folder as `game-<index>.png`. The same image may illustrate that game in every cluster that selected it. Delete every other screenshot under `games/`. The report and `qa-runs/` must not contain a fourth sample for any rule. Leave each `finding.json` in place so the counts can be checked.
+
+Write `qa-runs/<UTC-timestamp>/report.md`. Follow `references/report-template.md`. Do not commit `qa-runs/`.
 
 Show the same report in the reply, with the sample images. Required counts:
 
@@ -97,6 +103,6 @@ Show the same report in the reply, with the sample images. Required counts:
 - with bugs
 - incomplete
 
-Played must equal bug-free + with bugs + incomplete. Play every requested game unless the browser cannot continue. If you stop early, say why and set played to the number you finished.
+Played must equal bug-free + with bugs + incomplete.
 
-Include a **Run meta** section. Record UTC start, UTC end, and wall time. Include token usage only when this runtime exposes a total. When it does not, write `not exposed by this runtime`. Never estimate a token count.
+Include a **Run meta** section. Record UTC start, UTC end, and wall time. Say whether games ran in parallel or one at a time, and why. Include token usage only when this runtime exposes a total for the main agent and the subagents. When it does not, write `not exposed by this runtime`. Never estimate a token count.
