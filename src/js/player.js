@@ -49,7 +49,6 @@ export class Player {
 
     draw(card) {
         this.hand.push(card);
-        this.sortHand();
     }
 
     discard(cardIndex) {
@@ -66,16 +65,6 @@ export class Player {
         } else {
             this.discards.push(card);
         }
-    }
-
-    // Basic sorting: By Suite, then by Character Index
-    sortHand() {
-        this.hand.sort((a, b) => {
-            if (a.suiteIndex !== b.suiteIndex) {
-                return a.suiteIndex - b.suiteIndex;
-            }
-            return a.characterIndex - b.characterIndex;
-        });
     }
 
     getHand() {

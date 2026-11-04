@@ -9,7 +9,7 @@ export const SOUND_OPTIONS = [
     { value: 'xiaoxiao', labelKey: 'Xiaoxiao' },
     { value: 'xiaoxuan', labelKey: 'Xiaoxuan' },
     { value: 'yunyang', labelKey: 'Yunyang' },
-    { value: 'none', labelKey: 'None' }
+    { value: 'none', labelKey: 'Off' }
 ];
 
 const CALL_LINES = [

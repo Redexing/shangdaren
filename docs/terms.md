@@ -91,6 +91,7 @@ A bilingual dictionary of domain and UI terms distilled from `src/js/translation
 | **Watch Bot Game** | 观摩机器人对局 | Starts an automated 3-bot game |
 | **Settings** | 设置 | Settings panel |
 | **Language** | 语言 | Language toggle control |
+| **Off** | 关闭 | Sound setting that silences the table |
 | **About** | 关于 | Historical and cultural background page |
 | **How-to** | 玩法 | Gameplay and scoring rules page |
 | **Versions** | 版本 | Version history and roadmap page |
