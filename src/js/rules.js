@@ -669,19 +669,24 @@ export class Rules {
     }
 
     /**
-     * No-do-over for KOU. A suit stays closed for the rest of the game when
-     * this player has discarded any card of that suit, or previously declined
-     * a card when KOU was a legal option. A pass that could not form KOU does
-     * not close the suit. Harmony can still use a closed suit.
+     * No-do-over for KOU. A suit stays closed when a discard left a different
+     * character of that suit in hand, or this player previously declined a card
+     * when KOU was a legal option. Discarding a spare copy of the same character
+     * does not close the suit. A pass that could not form KOU does not either.
+     * Cards already locked in an exposed meld are not still "in hand".
+     * Harmony can still use a closed suit.
      */
-    static isKouClosed(card, discards = [], declinedKouCards = []) {
+    static isKouClosed(card, declinedKouCards = [], brokenKouSuits = []) {
         if (!card) return false;
         const sameSuit = (c) => c && c.suiteIndex === card.suiteIndex;
-        return (discards || []).some(sameSuit)
+        return (brokenKouSuits || []).includes(card.suiteIndex)
             || (declinedKouCards || []).some(sameSuit);
     }
 
     static getActions(hand, card, isSelf, exposed = [], discards = [], options = {}) {
+        // `discards` stays in the signature for callers. A discard closes KOU only
+        // when it left a different character of the suit in hand; that fact is
+        // recorded on the player and passed as options.brokenKouSuits.
         const moves = [];
         const sameInHand = hand.filter(c => c.typeId === card.typeId);
         const count = sameInHand.length;
@@ -691,7 +696,8 @@ export class Rules {
         const uniqueInSuite = Array.from(new Set(availSuiteInHand.map(c => c.characterIndex)));
 
         const declinedKouCards = options.declinedKouCards || [];
-        const suiteBroken = this.isKouClosed(card, discards, declinedKouCards);
+        const brokenKouSuits = options.brokenKouSuits || [];
+        const suiteBroken = this.isKouClosed(card, declinedKouCards, brokenKouSuits);
 
         const saoMatch = exposed.find(m => m.type === 'SAO' && m.cards[0].typeId === card.typeId);
         const halfMeldInSuite = exposed.find(

@@ -4,15 +4,15 @@ import { Game } from '../src/js/game.js';
 import { Player } from '../src/js/player.js';
 import { buildAllVeggieWaiverState, buildScreenshotHarmonyState } from './test_harmony.js';
 
-// Suite 丘乙几. Holding 丘 and seeing 几 can form KOU unless that suit was
-// discarded, or an earlier legal KOU was declined. Harmony still uses the suit.
+// Suite 丘乙几. Holding 丘 and seeing 几 can form KOU unless a discard left a
+// different character of that suit in hand, or an earlier legal KOU was declined.
+// A spare copy of the same character does not close the suit. Harmony still uses it.
 function kouNoDoOverCases(suiteIdx) {
     const qiu = new Card(200, suiteIdx, 0);
     const yi = new Card(201, suiteIdx, 1);
     const ji = new Card(202, suiteIdx, 2);
     const otherYi = new Card(203, suiteIdx, 1);
     const otherJi = new Card(204, suiteIdx, 2);
-    const otherQiu = new Card(205, suiteIdx, 0);
     const otherSuit = new Card(206, 4, 0);
 
     const winningHand = [
@@ -33,28 +33,21 @@ function kouNoDoOverCases(suiteIdx) {
             expected: ['KOU', 'PASS']
         },
         {
-            name: "No KOU after discarding 乙 from the same suit",
+            name: "No KOU after a discard that left a different character of the suit",
             hand: [qiu],
             card: ji,
             isSelf: true,
             discards: [yi],
+            options: { brokenKouSuits: [suiteIdx] },
             expected: ['PASS']
         },
         {
-            name: "No KOU after discarding 几 from the same suit",
-            hand: [qiu],
-            card: ji,
+            name: "Issue #49: discarding a spare 乙 does not close KOU for 丘",
+            hand: [yi],
+            card: qiu,
             isSelf: true,
-            discards: [otherJi],
-            expected: ['PASS']
-        },
-        {
-            name: "No KOU after discarding 丘 from the same suit",
-            hand: [qiu],
-            card: ji,
-            isSelf: true,
-            discards: [otherQiu],
-            expected: ['PASS']
+            discards: [otherYi],
+            expected: ['KOU', 'PASS']
         },
         {
             name: "No KOU after declining an available KOU in the suit",
@@ -86,7 +79,7 @@ function kouNoDoOverCases(suiteIdx) {
             hand: [qiu, yi],
             card: ji,
             isSelf: true,
-            discards: [otherJi],
+            options: { brokenKouSuits: [suiteIdx] },
             expected: ['CHI']
         },
         {
@@ -94,8 +87,7 @@ function kouNoDoOverCases(suiteIdx) {
             hand: winningHand,
             card: ji,
             isSelf: true,
-            discards: [otherYi],
-            options: { isSelfDraw: true, declinedKouCards: [otherJi] },
+            options: { isSelfDraw: true, declinedKouCards: [otherJi], brokenKouSuits: [suiteIdx] },
             expected: ['HARMONY', 'PASS']
         }
     ];
@@ -168,6 +160,33 @@ function runKouNoDoOverGameTests() {
             },
             card: ji,
             expected: ['KOU', 'PASS']
+        },
+        {
+            name: "Issue #49: a spare 乙 discarded beside an exposed 几 still allows KOU on 丘",
+            setup(game) {
+                const kept = new Card(310, suiteIdx, 1);
+                const thrown = new Card(311, suiteIdx, 1);
+                game.players[0].exposed = [{
+                    type: 'PENG',
+                    cards: [new Card(312, suiteIdx, 2), new Card(313, suiteIdx, 2), new Card(314, suiteIdx, 2)]
+                }];
+                game.players[0].hand = [kept, thrown];
+                const removed = game.players[0].discard(1);
+                game.players[0].addToDiscards(removed, false);
+            },
+            card: qiu,
+            expected: ['KOU', 'PASS']
+        },
+        {
+            name: "Discarding 乙 while 丘 is still in hand closes KOU",
+            setup(game) {
+                const thrown = new Card(315, suiteIdx, 1);
+                game.players[0].hand = [qiu, thrown];
+                const removed = game.players[0].discard(1);
+                game.players[0].addToDiscards(removed, false);
+            },
+            card: ji,
+            expected: ['PASS']
         }
     ];
 

@@ -8,6 +8,7 @@ export class Player {
         this.discards = []; // Array of Cards (From hand)
         this.passedCards = []; // Array of Cards (Drawn but immediately passed)
         this.declinedKouCards = []; // Cards passed when KOU was a legal option
+        this.brokenKouSuits = []; // Suits closed by a discard that left a different character in hand
 
         this.wins = 0;
         this.totalGames = 0;
@@ -63,8 +64,22 @@ export class Player {
     addToDiscards(card, wasPassed) {
         if (wasPassed) {
             this.passedCards.push(card);
-        } else {
-            this.discards.push(card);
+            return;
+        }
+        this.discards.push(card);
+        // The card has already left the hand. A spare copy of the same character
+        // does not break a KOU; a different character still in hand does.
+        this.noteKouBreak(card);
+    }
+
+    // [RULE-KOU-NO-DO-OVER]
+    noteKouBreak(card) {
+        if (!card) return;
+        const leftDifferent = this.hand.some(c =>
+            c.suiteIndex === card.suiteIndex && c.characterIndex !== card.characterIndex
+        );
+        if (leftDifferent && !this.brokenKouSuits.includes(card.suiteIndex)) {
+            this.brokenKouSuits.push(card.suiteIndex);
         }
     }
 

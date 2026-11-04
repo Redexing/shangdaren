@@ -198,7 +198,8 @@ export class Game {
         return {
             isSelf: playerIndex === this.currentPlayerIndex,
             isSelfDraw,
-            declinedKouCards: player.declinedKouCards || []
+            declinedKouCards: player.declinedKouCards || [],
+            brokenKouSuits: player.brokenKouSuits || []
         };
     }
 
