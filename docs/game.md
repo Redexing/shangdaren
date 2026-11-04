@@ -112,7 +112,7 @@ The following rules govern the game engine, validation logic, and test cases. Ea
 
 ### KOU Constraints
 - **`[RULE-KOU-MAX-EXPOSED]`**: A player may have at most 2 exposed KOU-equivalent melds. KOU, HALF-DRAGON, and HALF-SNAKE each count as one. A new KOU is not offered once two are already exposed. Completing an exposed KOU into CHI remains allowed.
-- **`[RULE-KOU-NO-DO-OVER]`**: A player cannot form a KOU in a suit if they have previously discarded any card of that suit, or declined a drawn/passed card when KOU was legally available in that suit. Passing a card that could not form KOU at that moment does not close the suit. This restriction does not block CHI or HARMONY.
+- **`[RULE-KOU-NO-DO-OVER]`**: A player cannot form a KOU in a suit after breaking that suit, or after declining a drawn/passed card when KOU was legally available. A discard breaks the suit only when a different character of the same suit is still in hand at that moment. Discarding a spare copy of the same character does not close the suit, and neither does a card that is already locked in an exposed meld. Passing a card that could not form KOU at that moment does not close the suit. This restriction does not block CHI or HARMONY.
 - **`[RULE-KOU-NO-BREAK-HAND]`**: A KOU cannot take a hand card that is part of an in-hand 3-of-a-kind or 4-of-a-kind, or a card that is essential to an existing complete CHI in hand. Those cards stay locked, the same as they cannot be discarded. A spare copy that is not essential to the CHI may still form a KOU.
 
 ### Meld Formation
