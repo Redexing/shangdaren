@@ -1,0 +1,22 @@
+# Keep binary media out of Agent, Tab, and @ mentions.
+# Clip ids and cache paths stay in src/js/voice_lines.js, sw.js, and docs/plans/.
+
+# Spoken clips (xiaoxiao, xiaoxuan, yunyang) and audition samples.
+/src/audio/
+/docs/plans/voice-announcements/samples/
+
+# Audio that lands outside those folders. m4a, opus, aiff, and caf are
+# outside Cursor's built-in binary list.
+*.mp3
+*.wav
+*.ogg
+*.m4a
+*.aac
+*.flac
+*.wma
+*.opus
+*.aiff
+*.caf
+
+# PWA icons. Paths are declared in manifest.json and index.html.
+/icon-*.png
