@@ -19,7 +19,7 @@ Played = bug-free + with bugs + incomplete.
 
 Branch: `<branch>`
 Constants: production delays, or `GAME_SPEEDS` at 40ms (local, not committed)
-Execution: parallel (each subagent had its own browser) or one at a time (shared browser)
+Execution: parallel (each subagent ran scripts/qa-robots.mjs on its own port) or one at a time (one script at a time)
 
 ## Clusters
 
@@ -54,7 +54,7 @@ Showing <1, 2, or 3> of N.
 - Started: `<YYYY-MM-DD HH:MM:SS UTC>`
 - Finished: `<YYYY-MM-DD HH:MM:SS UTC>`
 - Wall time: `<duration>`
-- Execution: `<parallel or one at a time, and why>`
+- Execution: `<parallel or one at a time, and why. Name scripts/qa-robots.mjs.>`
 - Tokens: `<total for the main agent and the subagents, or "not exposed by this runtime">`
 ```
 

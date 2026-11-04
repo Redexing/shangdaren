@@ -8,17 +8,23 @@ If the URL contains `probe=`, this is not a game. Open that URL and return the U
 
 Otherwise read `docs/game.md` before judging. Section 5 is the only source of `[RULE-...]` ids. Sections 2–4 define the deck, piles, melds, and points. A bug is a board or console that contradicts one of those ids. Timing, speech bubbles, voice, layout, and uncertain readings are not bugs. `how-to.html`, `about.html`, and `docs/archived/` are not the spec when they disagree with `docs/game.md`.
 
-## Browser
+## Play with the script
 
-1. Open the task URL in your own browser at a viewport **wider than 800px** (1280×900 is enough). At 800px and below the page is a carousel and two seats are off screen.
-2. `sw.js` is cache-first and may still be holding a slow `src/js/constants.js`. On this page, unregister every service worker, delete every Cache Storage entry, and reload. The page does not deal or draw until Watch is clicked, so do not judge speed yet.
-3. Set `#lang-select` to `en`, then `#sound-select` to `none`.
-4. Click `#btn-watch` (Watch Bot Game) once. Do not click `#btn-new-game`. Watch mode deals three bots and shows every HAND face up.
-5. Time that same hand. `Game started` should be followed by the draw in well under a second. If the gap is still about 0.5–3 seconds, the page is running the cached production delays. Return `status: "incomplete"` and set `error` to `stale cached constants`. Do not click Watch again.
-6. Wait for an ending: a blocking alert, or a console line containing `declares HARMONY`, `is BAO-ZI`, or `Deck empty. Draw game.` `main.js` calls `alert` on game over. The alert text is `Game Over! Winner: ...` or `Game Over! ... is BAO-ZI (no cards to discard). Everyone else wins!` A draw says `Game Over! Winner: None`.
-7. If three minutes pass with no new console line, or five minutes pass with no ending, treat the hand as stuck and capture it.
-8. Record the alert text, then dismiss the alert. The board underneath is the final table. Screenshot `#players-area` and `#dashboard` together before any later click replaces them. If one image cannot fit the table, capture the whole page in parts and save every part in the output directory. Name them `board-1.png`, `board-2.png`, and so on, in capture order. A single image is `board.png`. That set is still this one game's board.
-9. Save the console slice from this hand's `[DECK] Initializing with seed:` through the terminal line. `game.log` prints each line once, and `main.js` prints it again with a `[GAME]` prefix. Keep one copy. Also keep any `console.error` from this hand.
+Run the command from the task prompt. It is `scripts/qa-robots.mjs` with `--games 1`, this game's `--index`, `--url`, `--out`, and `--port`. Do not write another driver and do not click through the table yourself.
+
+The script opens one Chrome window wider than 800px, drops a stale service worker and cache, sets English and sound off, clicks Watch once, and waits for the ending. It records `alert` text instead of leaving a blocking dialog. It writes three files into the output directory:
+
+- `capture.json` — seed, alert, ending, elapsed time, mechanical anomalies, and the console excerpt
+- `console.txt` — the same excerpt: one copy of each line from `[DECK] Initializing with seed:` through the terminal line, plus any `console.error`
+- `board.png` — the full page after the hand ends, including `#players-area` and `#dashboard`
+
+Exit codes:
+
+- `0`: the hand reached an ending. Judge `capture.json` and `board.png`.
+- `2`: the draw was still on the production delays. Return `status: "incomplete"` and set `error` to `stale cached constants`. Do not run the script again for this run.
+- `1`: the hand stalled or Chrome failed. If `board.png` exists, judge that table. Otherwise return `status: "incomplete"` and set `error` from `capture.json` when that file exists, or to the script's stderr.
+
+`capture.json` field `ending` is `harmony`, `bao-zi`, `draw`, `stuck`, or `error`. `anomalies` are mechanical notes (a duplicated card id, a hand count that does not match the label, a console error). They are not violations until one of them contradicts a section-5 rule. Timing, speech bubbles, voice, and layout stay out of the report unless a section-5 id fits.
 
 Each seat shows HAND, EXPOSED (with a meld label), DISCARD, PASSED, card count, and points. Points are a clue. The rule text decides whether the score is legal.
 
