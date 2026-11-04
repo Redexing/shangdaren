@@ -182,10 +182,11 @@ All delays and animation durations are centralized in `src/js/constants.js`:
 - **Desktop (>800px)**: Uses `.card-desktop-layout` with vertical top/bottom character stamps and a 44px $\times$ 132px aspect ratio.
 - **Mobile ($\le$ 800px)**: Hides the desktop layout and renders `.center-char` in a 44px $\times$ 44px square tile. Both layouts must remain styled in `src/css/style.css`.
 
-### 5.6 Arrival Order on the Table
-HAND, DISCARD, PASSED, and each exposed meld row show cards in the order they arrived. Do not sort those rows by suit or character.
+### 5.6 Card Order on the Table
+HAND is sorted by suit, then by character, whenever a card is drawn. The eight suits stay together so a player can find a card.
 
-- A dealt or drawn card is appended to HAND.
+DISCARD, PASSED, and each exposed meld row show cards in the order they arrived. Do not sort those rows by suit or character.
+
 - A discard is appended to DISCARD. A passed card is appended to PASSED.
 - A new meld is the cards taken from the hand, in the order they sat in the hand, with the card taken from the center in the rightmost position.
 - When a meld grows, append the new cards. Hand cards keep their hand order. Cards merged from another meld keep that meld's order. The card just taken from the center stays rightmost, so the cards added on this claim remain visible at the right.

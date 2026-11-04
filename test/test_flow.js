@@ -1016,15 +1016,17 @@ export function runFlowTests() {
         );
     });
 
-    const arrival = new Player('Bot 1', false);
+    const sortedHand = new Player('Bot 1', false);
     const tu = card(901, 3, 2);
+    const da = card(903, 0, 1);
     const shang = card(902, 0, 0);
-    arrival.draw(tu);
-    arrival.draw(shang);
+    sortedHand.draw(tu);
+    sortedHand.draw(da);
+    sortedHand.draw(shang);
     assert(
-        'HAND keeps cards in the order they arrive',
-        arrival.hand.map(c => c.id).join(',') === '901,902',
-        arrival.hand.map(c => c.character).join('')
+        'HAND sorts by suit, then by character',
+        sortedHand.hand.map(c => c.character).join('') === '上大土',
+        sortedHand.hand.map(c => c.character).join('')
     );
 
     withFakeTimers(({ drain }) => {
