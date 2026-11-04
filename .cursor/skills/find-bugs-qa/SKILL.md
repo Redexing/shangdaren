@@ -2,8 +2,8 @@
 name: find-bugs-qa
 description: >-
   Orchestrate watched three-bot Shangdaren games and report rule violations
-  against docs/game.md. The main agent prepares each game and a subagent
-  plays it. Invoke only with /find-bugs-qa.
+  against docs/game.md. A subagent plays each game with scripts/qa-robots.mjs.
+  Invoke only with /find-bugs-qa.
 disable-model-invocation: true
 ---
 
@@ -18,6 +18,8 @@ The deliverable is one report. Do not open a GitHub issue or a pull request unle
 The agent that loaded this skill is the **main agent**. It prepares the run, sends one self-contained task per game, waits for every subagent, and writes the report. It does not play a hand and it does not judge a table from its own browser.
 
 A **subagent** plays exactly one watched game, decides whether that table violates `docs/game.md`, and returns a finding. The procedure it must follow is `references/subagent-brief.md`. A subagent does not see this conversation, so the main agent puts the brief and the per-game fields in the task prompt.
+
+The subagent plays the hand with `scripts/qa-robots.mjs`. Do not write a new browser driver, a Playwright script, or a Node simulation of the rules. One invocation owns one Chrome window, one debug port, and one profile directory.
 
 Spawn each subagent in this same workspace so its screenshot and `finding.json` land in `qa-runs/`. One game per subagent. Do not send a second game to a subagent that is still playing, and do not resume a subagent onto another game while its browser still shows the previous table.
 
@@ -57,11 +59,13 @@ If you already know the runtime gives every subagent a separate browser, run the
 
 If you already know they share one browser, run one subagent to completion, wait for its finding, then send the next game. On a runtime with a single shared browser subagent, reuse that session for the next game only after its finding is back and the previous table is no longer needed.
 
+Each concurrent game is a separate run of `scripts/qa-robots.mjs` with its own `--port` and its own `--out`. Do not reuse a port or a Chrome profile across invocations that overlap. Assign ports from a free range, for example `9400 + game index`. The probe below does not run the script.
+
 When you are unsure, decide with a probe before game 1. Launch two subagents together. Give each `references/subagent-brief.md` and a different URL: `http://127.0.0.1:8000/?probe=A` and `http://127.0.0.1:8000/?probe=B`. Each one only opens that URL and returns the URL it actually loaded. Do not click Watch.
 
 - Both return their own probe URL: browsers are independent. Play the batch concurrently, within the number of browsers the runtime can keep open.
 - They return the same URL, one fails to open a page, or the runtime has only one browser subagent: play one game at a time.
-- Neither can open a browser: stop. Do not invent a report, and do not replace the browser with `npm test` or a Node simulation.
+- Neither can open a browser: stop. Do not invent a report, and do not replace the watched game with `npm test` or a simulation of the rules. `scripts/qa-robots.mjs` is the Chrome driver for a real table. It is not a substitute for skipping the browser.
 
 Probe games do not count toward the requested number.
 
@@ -73,7 +77,20 @@ For each game index from 1 to the requested count, the task prompt contains:
 - the game index and the requested total
 - the game URL (no probe query)
 - the output directory `qa-runs/<UTC-timestamp>/games/<index>/`
+- this command, with that directory, that URL, and a port no other live game is using:
+
+```bash
+node .cursor/skills/find-bugs-qa/scripts/qa-robots.mjs \
+  --games 1 \
+  --index <index> \
+  --url http://127.0.0.1:8000/ \
+  --out qa-runs/<UTC-timestamp>/games/<index> \
+  --port <9400 + index>
+```
+
 - the same bug definition as above, including the path `docs/game.md`
+
+Do not pass a timer scale. Page delays come from `GAME_SPEEDS`. Exit 0 means the hand reached an ending. Exit 2 means the draw was still on production delays (`stale cached constants`): that game is incomplete, and do not launch the rest of the batch against the cached script. Exit 1 means the hand stalled or Chrome failed. `capture.json` lists mechanical anomalies. Those are clues. A violation still has to name a section-5 rule.
 
 Then wait. Every requested game needs a finding before you write the report. A subagent that fails without `finding.json` is an incomplete game: record the error and keep going with the games that are still outstanding. Stop launching new games only when the server or the browser runtime cannot continue. Wait for subagents that are already playing, then report with played set to the number of findings you actually have.
 
