@@ -17,6 +17,11 @@
 // Page delays come from the loaded GAME_SPEEDS. This script does not edit
 // source files and does not scale timers.
 //
+// Before each Watch click the browser zoom is reset to 100% and then set to
+// 50%, so the full-page screenshot shows every hand, exposed meld, discard
+// pile, and passed pile. Chrome's zoom presets from 100% are 90, 80, 75, 67,
+// and 50, so that is five Ctrl+Minus steps after Ctrl+0.
+//
 // Exit 0: every game reached an ending.
 // Exit 1: a game stalled, or Chrome or the page failed.
 // Exit 2: the first draw still used production delays (stale cached constants).
@@ -29,6 +34,9 @@ import path from 'path';
 const STALL_MS = 3 * 60 * 1000;
 const GAME_TIMEOUT_MS = 5 * 60 * 1000;
 const SLOW_DRAW_MS = 1000;
+const BROWSER_ZOOM = 0.5;
+// Preset steps down from 100%: 90%, 80%, 75%, 67%, 50%.
+const ZOOM_OUT_STEPS = 5;
 
 function usage() {
   console.log(`Usage: qa-robots.mjs --out <dir> [options]
@@ -211,6 +219,45 @@ function analyze(snap) {
     }
   }
   return [...new Set(issues)];
+}
+
+async function dispatchCtrlKey(send, key, code, vk) {
+  const event = {
+    modifiers: 2,
+    key,
+    code,
+    windowsVirtualKeyCode: vk,
+    nativeVirtualKeyCode: vk
+  };
+  await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...event });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', ...event });
+}
+
+async function readBrowserZoom(send) {
+  const metrics = await send('Page.getLayoutMetrics');
+  return metrics.visualViewport?.zoom ?? null;
+}
+
+// Real Chrome page zoom, not CSS zoom and not Emulation.setPageScaleFactor.
+// Reset first so a second hand in the same window does not step past 50%.
+async function setBrowserZoom(send) {
+  await send('Page.bringToFront');
+  await send('Runtime.evaluate', {
+    expression: 'document.activeElement && document.activeElement.blur()',
+    returnByValue: true
+  });
+  await dispatchCtrlKey(send, '0', 'Digit0', 48);
+  await sleep(40);
+  for (let step = 0; step < ZOOM_OUT_STEPS; step++) {
+    await dispatchCtrlKey(send, '-', 'Minus', 189);
+  }
+  let zoom = null;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await sleep(50);
+    zoom = await readBrowserZoom(send);
+    if (typeof zoom === 'number' && Math.abs(zoom - BROWSER_ZOOM) <= 0.02) return zoom;
+  }
+  throw new Error(`Browser zoom is ${zoom}, expected ${BROWSER_ZOOM}`);
 }
 
 function connectCdp(wsUrl, logs, exceptions) {
@@ -415,6 +462,7 @@ async function main() {
         elapsedMs: capture.elapsedMs,
         stalled: capture.stalled,
         staleConstants: capture.staleConstants,
+        browserZoom: capture.browserZoom,
         anomalies: capture.anomalies,
         drawEnabledDuringWatch: capture.drawEnabledDuringWatch,
         suspicious: capture.suspicious,
@@ -442,6 +490,8 @@ async function main() {
       let error = null;
       const started = Date.now();
 
+      const browserZoom = await setBrowserZoom(send);
+      console.log(`ZOOM game ${index} ${browserZoom}`);
       await evaluate(`document.getElementById('btn-watch').click()`);
 
       let gameStartedAt = 0;
@@ -517,6 +567,7 @@ async function main() {
         elapsedMs: Date.now() - started,
         stalled,
         staleConstants,
+        browserZoom,
         anomalies,
         drawEnabledDuringWatch,
         suspicious,
