@@ -92,7 +92,7 @@ export function runFlowTests() {
         game.executeBotMeld(0, ke, { type: 'CHI', cards: [], meldRef: kou });
         assert(
             '可 upgrades 知礼 into a 3-card CHI',
-            kou.type === 'CHI' && kou.cards.map(c => c.character).join('') === '知礼可',
+            kou.type === 'CHI' && kou.cards.map(c => c.character).join('') === '可知礼',
             kou.cards.map(c => c.character).join('')
         );
         game.executeBotMeld(0, jia, { type: 'CHI', cards: [], meldRef: kou });
@@ -608,8 +608,8 @@ export function runFlowTests() {
             `type=${game.players[0].exposed[0]?.type} cards=${game.players[0].exposed[0]?.cards.length}`
         );
 
-        // 2. Exposed HALF-DRAGON (尔尔尔小尔) + exposed SAO (生x3) + incoming 4th 生
-        // stays in arrival order: the SAO block, then the new 生 at the right.
+        // 2. Exposed HALF-DRAGON + exposed SAO (生x3) + incoming 4th 生
+        // sorts by character: 尔, then 小, then 生.
         const shengSao = {
             type: 'SAO',
             cards: [card(716, 4, 2), card(717, 4, 2), card(718, 4, 2)]
@@ -626,7 +626,7 @@ export function runFlowTests() {
             game.players[0].exposed.length === 1
                 && game.players[0].exposed[0].type === 'TWO-DRAGONS-TUSSLING'
                 && game.players[0].exposed[0].cards.length === 9
-                && game.players[0].exposed[0].cards.map(c => c.character).join('') === '尔尔尔小尔生生生生'
+                && game.players[0].exposed[0].cards.map(c => c.character).join('') === '尔尔尔尔小生生生生'
                 && game.players[0].hand.length === 0
                 && game.players[0].discards.length === 2,
             `exposedCount=${game.players[0].exposed.length} chars=${game.players[0].exposed[0]?.cards.map(c => c.character).join('')}`
@@ -672,7 +672,7 @@ export function runFlowTests() {
             over && over.special === 'BAO-ZI' && over.triggerPlayer === game.players[0]
                 && half && half.cards.some(c => c.id === zi.id) && half.cards.some(c => c.id === jiu.id)
                 && half.cards.length === 5
-                && half.cards[half.cards.length - 1].id === jiu.id
+                && half.cards.map(c => c.character).join('') === '九九九九子'
                 && game.activeCard === null
                 && game.players[0].hand.length === 1 && game.players[0].hand[0].id === spare.id
                 && game.players[0].discards.length === 0

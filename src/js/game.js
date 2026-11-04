@@ -484,6 +484,7 @@ export class Game {
         // Finalize state: Add all cards to exposed for visualization
         const assessed = Rules.assessHarmony(p.hand, p.exposed, card, { isSelfDraw, isSelf });
         if (assessed && assessed.partition) {
+            assessed.partition.forEach(meld => this.sortMeldCards(meld.cards));
             p.exposed = assessed.partition;
             p.hand = [];
         }
@@ -504,6 +505,7 @@ export class Game {
             const idx = player.hand.findIndex(hc => hc.id === c.id);
             if (idx !== -1) player.hand.splice(idx, 1);
         });
+        this.sortMeldCards(nakedQuad);
         player.exposed.push({ type: 'KAI-ZAO', cards: nakedQuad });
         highlighted.push(...nakedQuad);
         this.log(`${player.name} revealed naked 4-of-a-kind (${nakedQuad[0].toString()}) in EXPOSED and skipped discard`);
@@ -532,7 +534,7 @@ export class Game {
             if (meld && card) {
                 const oldType = meld.type;
                 // Remove any extra hand cards attached to this upgrade (e.g., SAO -> HALF-DRAGON / DRAGON)
-                this.cardsInHandOrder(player.hand, action.cards).forEach(c => {
+                (action.cards || []).forEach(c => {
                     const idx = player.hand.findIndex(hc => hc.id === c.id);
                     if (idx !== -1) player.hand.splice(idx, 1);
                     meld.cards.push(c);
@@ -548,6 +550,7 @@ export class Game {
                 }
                 meld.type = action.type; // Upgrade type (e.g., CHI or DRAGON)
                 meld.cards.push(card);
+                this.sortMeldCards(meld.cards);
                 highlighted.push(card, ...meld.cards);
                 this.log(`${player.name} upgraded ${oldType} into ${action.type} with ${card.toString()}`);
                 this.announceCall(playerIndex, action.type);
@@ -559,10 +562,10 @@ export class Game {
                 }
             }
         } else {
-            const fromHand = this.cardsInHandOrder(player.hand, action.cards);
-            const meldCards = [...fromHand, card];
+            const meldCards = [...(action.cards || []), card];
+            this.sortMeldCards(meldCards);
             // Remove from hand
-            fromHand.forEach(c => {
+            (action.cards || []).forEach(c => {
                 const idx = player.hand.findIndex(hc => hc.id === c.id);
                 if (idx !== -1) player.hand.splice(idx, 1);
             });
@@ -702,7 +705,7 @@ export class Game {
         if (action.meldRef) {
             const meld = action.meldRef;
             if (meld && meldCard) {
-                this.cardsInHandOrder(p.hand, action.cards).forEach(c => {
+                (action.cards || []).forEach(c => {
                     const idx = p.hand.findIndex(hc => hc.id === c.id);
                     if (idx !== -1) p.hand.splice(idx, 1);
                     meld.cards.push(c);
@@ -717,6 +720,7 @@ export class Game {
                 }
                 meld.type = action.type;
                 meld.cards.push(meldCard);
+                this.sortMeldCards(meld.cards);
 
                 // Rule 6 removal
                 if (this.activeCardSource !== null && this.activeCardSource !== 'DECK' && this.activeCardSource !== humanIdx) {
@@ -726,9 +730,9 @@ export class Game {
                 this.announceCall(humanIdx, action.type);
             }
         } else {
-            const fromHand = this.cardsInHandOrder(p.hand, action.cards);
-            const meldCards = [...fromHand, meldCard];
-            fromHand.forEach(c => {
+            const meldCards = [...(action.cards || []), meldCard];
+            this.sortMeldCards(meldCards);
+            (action.cards || []).forEach(c => {
                 const idx = p.hand.findIndex(hc => hc.id === c.id);
                 if (idx !== -1) p.hand.splice(idx, 1);
             });
@@ -789,6 +793,7 @@ export class Game {
 
         // Add meld to exposed
         const meldCards = [...sameCards, card];
+        this.sortMeldCards(meldCards);
         player.exposed.push({ type, cards: meldCards });
 
 
@@ -913,10 +918,10 @@ export class Game {
         this.handlePlayerDiscard(idx);
     }
 
-    // Hand cards enter a meld in the order they sit in the hand.
-    // The caller appends the card taken from the center.
-    cardsInHandOrder(hand, cards) {
-        return [...(cards || [])].sort((a, b) => hand.indexOf(a) - hand.indexOf(b));
+    // A meld is one suit. Character order is the mnemonic order of that suit.
+    sortMeldCards(cards) {
+        if (!cards) return;
+        cards.sort((a, b) => a.characterIndex - b.characterIndex);
     }
 
     handAfterMeldClaim(hand, action) {
