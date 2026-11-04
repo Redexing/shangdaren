@@ -92,7 +92,7 @@ export function runFlowTests() {
         game.executeBotMeld(0, ke, { type: 'CHI', cards: [], meldRef: kou });
         assert(
             '可 upgrades 知礼 into a 3-card CHI',
-            kou.type === 'CHI' && kou.cards.map(c => c.character).sort().join('') === '可知礼',
+            kou.type === 'CHI' && kou.cards.map(c => c.character).join('') === '知礼可',
             kou.cards.map(c => c.character).join('')
         );
         game.executeBotMeld(0, jia, { type: 'CHI', cards: [], meldRef: kou });
@@ -608,7 +608,8 @@ export function runFlowTests() {
             `type=${game.players[0].exposed[0]?.type} cards=${game.players[0].exposed[0]?.cards.length}`
         );
 
-        // 2. Exposed HALF-DRAGON (尔尔尔尔小) + exposed SAO (生x3) + incoming 4th 生 -> merges into 9-card TWO-DRAGONS-TUSSLING
+        // 2. Exposed HALF-DRAGON (尔尔尔小尔) + exposed SAO (生x3) + incoming 4th 生
+        // stays in arrival order: the SAO block, then the new 生 at the right.
         const shengSao = {
             type: 'SAO',
             cards: [card(716, 4, 2), card(717, 4, 2), card(718, 4, 2)]
@@ -625,7 +626,7 @@ export function runFlowTests() {
             game.players[0].exposed.length === 1
                 && game.players[0].exposed[0].type === 'TWO-DRAGONS-TUSSLING'
                 && game.players[0].exposed[0].cards.length === 9
-                && game.players[0].exposed[0].cards.map(c => c.character).join('') === '尔尔尔尔小生生生生'
+                && game.players[0].exposed[0].cards.map(c => c.character).join('') === '尔尔尔小尔生生生生'
                 && game.players[0].hand.length === 0
                 && game.players[0].discards.length === 2,
             `exposedCount=${game.players[0].exposed.length} chars=${game.players[0].exposed[0]?.cards.map(c => c.character).join('')}`
@@ -671,6 +672,8 @@ export function runFlowTests() {
             over && over.special === 'BAO-ZI' && over.triggerPlayer === game.players[0]
                 && half && half.cards.some(c => c.id === zi.id) && half.cards.some(c => c.id === jiu.id)
                 && half.cards.length === 5
+                && half.cards[half.cards.length - 1].id === jiu.id
+                && game.activeCard === null
                 && game.players[0].hand.length === 1 && game.players[0].hand[0].id === spare.id
                 && game.players[0].discards.length === 0
                 && game.players[0].wins === 0 && game.players[0].totalRewards === 0
@@ -773,12 +776,13 @@ export function runFlowTests() {
         const bDa = card(735, 0, 1);
         const bRen = card(736, 0, 2);
         game.players[1].hand = [...nakedQi, bShang, bDa];
-        game.executeBotMeld(1, bRen, { type: 'CHI', cards: [bShang, bDa] });
+        game.activeCard = bRen;
+        game.executeBotMeld(1, bRen, { type: 'CHI', cards: [bDa, bShang] });
 
         assert(
             '[RULE-NAKED-QUAD-REVEAL] Bot reveals naked 4-of-a-kind in EXPOSED and skips discard (avoiding false BAO-ZI)',
             game.players[1].exposed.length === 2
-                && game.players[1].exposed.some(m => m.type === 'CHI' && m.cards.length === 3)
+                && game.players[1].exposed.some(m => m.type === 'CHI' && m.cards.map(c => c.character).join('') === '上大人')
                 && game.players[1].exposed.some(m => m.type === 'KAI-ZAO' && m.cards.length === 4)
                 && game.players[1].hand.length === 0
                 && game.players[1].discards.length === 0
@@ -1009,6 +1013,50 @@ export function runFlowTests() {
                 && logs.some(l => l.includes('Bot 1 declined passed card'))
                 && !logs.slice(0, 8).some(l => l.includes('Bot 1 performs KOU')),
             `hand=${bot1} log=${opened}`
+        );
+    });
+
+    const arrival = new Player('Bot 1', false);
+    const tu = card(901, 3, 2);
+    const shang = card(902, 0, 0);
+    arrival.draw(tu);
+    arrival.draw(shang);
+    assert(
+        'HAND keeps cards in the order they arrive',
+        arrival.hand.map(c => c.id).join(',') === '901,902',
+        arrival.hand.map(c => c.character).join('')
+    );
+
+    withFakeTimers(({ drain }) => {
+        const game = new Game();
+        game.players = [
+            new Player('You', true),
+            new Player('Bot Left', false),
+            new Player('Bot Right', false)
+        ];
+        game.players.forEach(p => { p.hand = [card(910 + p.name.length, 1, 0)]; });
+        const first = card(920, 0, 0);
+        const second = card(921, 0, 1);
+        game.deck.cards = [second, first];
+        game.currentPlayerIndex = 0;
+        game.turnPhase = 'DRAWING';
+        game.scheduleFlow(1000, () => game.drawCard());
+        game.handlePlayerDraw();
+        drain(5);
+        assert(
+            'Draw takes the top card and cancels the scheduled auto-draw',
+            game.activeCard && game.activeCard.id === first.id
+                && game.deck.cards.length === 1
+                && game.deck.cards[0].id === second.id
+                && game.turnPhase === 'DECISION_WAIT',
+            `active=${game.activeCard && game.activeCard.id} deck=${game.deck.cards.map(c => c.id).join(',')} phase=${game.turnPhase}`
+        );
+        const before = game.deck.cards.length;
+        game.handlePlayerDraw();
+        assert(
+            'Draw does nothing once a card is already in the center',
+            game.deck.cards.length === before && game.activeCard.id === first.id,
+            `deck=${game.deck.cards.length}`
         );
     });
 

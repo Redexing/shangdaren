@@ -7,7 +7,7 @@ Spoken audio is Mandarin only. The English UI stays English. The clips say the C
 ## Settled
 
 1. **Win call.** The engine term stays 和, on the button and in the speech bubble. The clip says **糊了** (`hú le`, 了 neutral).
-2. **Voices.** 女声 晓晓, 女声 晓萱, 男声 云扬. One header dropdown, 声音 / Sound on, sits immediately before Language. It lists the three personas and 关闭 / None. The chosen persona is the voice of You, or of Bot 1 in a watched game. 关闭 silences the whole table.
+2. **Voices.** 女声 晓晓, 女声 晓萱, 男声 云扬. One header dropdown, 声音 / Sound on, sits immediately before Language. It lists the three personas and 关闭 / Off. The chosen persona is the voice of You, or of Bot 1 in a watched game. 关闭 silences the whole table.
 3. **Who says 不要.** The player who declines the passed card. The drawer's earlier pass stays silent, because the next player may still take the card.
 4. **Which calls are spoken.** Every meld the engine can form, plus 糊了 for a win, plus that closing 不要. Discard, 没有碰, and 包子 stay silent in this slice.
 
@@ -159,7 +159,7 @@ Label text is `t('Sound on')`: 声音 in zh, Sound on in en, with the same `: ` 
 | `xiaoxiao` | 晓晓 | Xiaoxiao | You, or Bot 1 in a watched game |
 | `xiaoxuan` | 晓萱 | Xiaoxuan | You, or Bot 1 in a watched game |
 | `yunyang` | 云扬 | Yunyang | You, or Bot 1 in a watched game |
-| `none` | 关闭 | None | Nobody |
+| `none` | 关闭 | Off | Nobody |
 
 Seat 0 is the player named You in a played game and Bot 1 in a watched game (`init` in `game.js`). The chosen persona is that seat's voice. The other two seats take the remaining personas in the order 晓晓, 晓萱, 云扬.
 
