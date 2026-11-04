@@ -185,13 +185,9 @@ All delays and animation durations are centralized in `src/js/constants.js`:
 ### 5.6 Card Order on the Table
 HAND is sorted by suit, then by character, whenever a card is drawn. The eight suits stay together so a player can find a card.
 
-DISCARD, PASSED, and each exposed meld row show cards in the order they arrived. Do not sort those rows by suit or character.
+Each exposed meld is one suit. Sort it by character after it is formed and after it grows, including the winning partition from `Rules.assessHarmony`. A CHI then reads in mnemonic order, such as 上大人 or 可知礼. Copies of the same character stay together.
 
-- A discard is appended to DISCARD. A passed card is appended to PASSED.
-- A new meld is the cards taken from the hand, in the order they sat in the hand, with the card taken from the center in the rightmost position.
-- When a meld grows, append the new cards. Hand cards keep their hand order. Cards merged from another meld keep that meld's order. The card just taken from the center stays rightmost, so the cards added on this claim remain visible at the right.
-- Do not reorder a meld after it is formed.
-- Harmony replaces EXPOSED with the winning partition from `Rules.assessHarmony`. That grouping is the win. It is not arrival order.
+DISCARD and PASSED keep arrival order. A discard is appended to DISCARD. A passed card is appended to PASSED.
 
 ---
 
