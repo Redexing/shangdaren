@@ -841,6 +841,32 @@ export function runRewardTests() {
     }
 
     {
+        // Game 115: CHI 佳作仁 leaves 尔尔尔小生. 小 and 生 are a KOU.
+        const game = createBareGame();
+        const bot = game.players[2];
+        bot.name = 'Bot 3';
+        const jia = card(6, 0);
+        const zuo = card(6, 1);
+        const ren = card(6, 2);
+        bot.hand = [jia, zuo, ...cards(4, 0, 3), card(4, 1), card(4, 2)];
+        const lines = [];
+        game.log = (msg) => lines.push(msg);
+        game.executeBotMeld(2, ren, { type: 'CHI', cards: [jia, zuo] });
+        game.flowToken++;
+        const discarded = bot.discards[bot.discards.length - 1];
+        assert(
+            '[RULE-DISCARD-RESTRICTION-CHI] 小 or 生 beside a locked 尔 trip is a legal discard, not baozi',
+            bot.totalGames === 0
+                && lines.every(line => !line.includes('BAO-ZI'))
+                && discarded
+                && (discarded.character === '小' || discarded.character === '生')
+                && bot.hand.filter(c => c.character === '尔').length === 3
+                && bot.exposed.some(m => m.type === 'CHI'),
+            `discard=${discarded && discarded.character} hand=${bot.hand.map(c => c.character).join('')} lines=${lines.join(' | ')}`
+        );
+    }
+
+    {
         const game = createBareGame();
         const state = buildAllVeggieWaiverState();
         game.players[0].hand = [...state.hand, state.activeCard];
