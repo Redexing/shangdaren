@@ -308,6 +308,25 @@ export function runRewardTests() {
         );
     }
 
+    // Four 上 stay inside the upgraded TWO-DRAGONS-TUSSLING meld, so the quad
+    // reward remains on top of the tussling reward. 26 Fu: score-20 + 3 + 2 = 6.
+    expectReward(
+        '[RULE-REWARD-SPECIAL-QUAD] TWO-DRAGONS-TUSSLING with four 上 scores special-quad',
+        [
+            ...cards(0, 0, 4),
+            card(0, 1),
+            ...cards(0, 2, 4),
+            ...kou(3, 0, 1),
+            ...kou(4, 0, 1),
+            ...chi(5)
+        ],
+        [],
+        null,
+        {},
+        6,
+        ['score-20', 'two-dragons-tussling', 'special-quad']
+    );
+
     // Half-dragon is not a full snake/dragon. This one is also not a special quad.
     expectReward(
         'Half-dragon alone does not score a reward',
