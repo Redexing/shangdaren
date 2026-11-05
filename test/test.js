@@ -90,6 +90,50 @@ if (Rules.canDiscard(hand4, 0) === false) {
     process.exit(1);
 }
 
+// [尔, 尔, 尔, 小, 生]: the trip stays whole, so 小 and 生 are a KOU.
+const erTrip = [new Card(120, 4, 0), new Card(121, 4, 0), new Card(122, 4, 0)];
+const xiao = new Card(123, 4, 1);
+const sheng = new Card(124, 4, 2);
+const handKouBesideTrip = [...erTrip, xiao, sheng];
+const xiaoIdx = handKouBesideTrip.indexOf(xiao);
+const shengIdx = handKouBesideTrip.indexOf(sheng);
+if (
+    Rules.canDiscard(handKouBesideTrip, 0) === false
+    && Rules.canDiscard(handKouBesideTrip, xiaoIdx) === true
+    && Rules.canDiscard(handKouBesideTrip, shengIdx) === true
+) {
+    console.log('canDiscard (KOU beside trip) passed.');
+} else {
+    console.error('canDiscard (KOU beside trip) FAILED.');
+    process.exit(1);
+}
+
+// Four 尔 are a quad, not CHI material. 小 and 生 stay discardable.
+const handKouBesideQuad = [...erTrip, new Card(125, 4, 0), xiao, sheng];
+if (
+    Rules.canDiscard(handKouBesideQuad, 0) === false
+    && Rules.canDiscard(handKouBesideQuad, handKouBesideQuad.indexOf(xiao)) === true
+    && Rules.canDiscard(handKouBesideQuad, handKouBesideQuad.indexOf(sheng)) === true
+) {
+    console.log('canDiscard (KOU beside quad) passed.');
+} else {
+    console.error('canDiscard (KOU beside quad) FAILED.');
+    process.exit(1);
+}
+
+// [尔, 尔, 小, 生] is a real CHI plus a spare 尔. 小 and 生 stay locked.
+const realChi = [new Card(126, 4, 0), new Card(127, 4, 0), xiao, sheng];
+if (
+    Rules.canDiscard(realChi, 0) === true
+    && Rules.canDiscard(realChi, realChi.indexOf(xiao)) === false
+    && Rules.canDiscard(realChi, realChi.indexOf(sheng)) === false
+) {
+    console.log('canDiscard (real CHI still locks partners) passed.');
+} else {
+    console.error('canDiscard (real CHI still locks partners) FAILED.');
+    process.exit(1);
+}
+
 // [RULE-NAKED-QUAD-REVEAL]: findNakedQuadInHand detects naked 4-of-a-kind vs non-naked 4-of-a-kind
 const quadCards = [new Card(110, 3, 0), new Card(111, 3, 0), new Card(112, 3, 0), new Card(113, 3, 0)];
 const nakedQuadRes = Rules.findNakedQuadInHand([...quadCards, s0c0]);

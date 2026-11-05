@@ -650,12 +650,18 @@ export class Rules {
         const sameCount = hand.filter(c => c.typeId === card.typeId).length;
         if (sameCount >= 3) return false;
 
-        // 2. Check if card is essential for a complete suite (CHI) in hand
+        // 2. Check if card is essential for a complete suite (CHI) in hand.
+        // [RULE-SUIT-MELD-PRIORITY]: a 3- or 4-of-a-kind stays whole, so those
+        // copies are not part of a CHI. The other two characters are a KOU,
+        // and either of them may be discarded ([RULE-DISCARD-RESTRICTION-CHI]).
         const suiteCards = hand.filter(c => c.suiteIndex === card.suiteIndex);
         const counts = [0, 0, 0];
         suiteCards.forEach(c => {
             counts[c.characterIndex]++;
         });
+        for (let i = 0; i < 3; i++) {
+            if (counts[i] >= 3) counts[i] = 0;
+        }
 
         const oldSuites = Math.min(counts[0], counts[1], counts[2]);
         if (oldSuites > 0) {
