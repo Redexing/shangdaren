@@ -108,16 +108,42 @@ if (
     process.exit(1);
 }
 
-// Four 尔 are a quad, not CHI material. 小 and 生 stay discardable.
-const handKouBesideQuad = [...erTrip, new Card(125, 4, 0), xiao, sheng];
+// Four 尔 plus 小 and 生 is a dragon. That meld cannot be broken.
+const dragonXiao = new Card(130, 4, 1);
+const dragonSheng = new Card(131, 4, 2);
+const handDragon = [...erTrip, new Card(125, 4, 0), dragonXiao, dragonSheng];
 if (
-    Rules.canDiscard(handKouBesideQuad, 0) === false
-    && Rules.canDiscard(handKouBesideQuad, handKouBesideQuad.indexOf(xiao)) === true
-    && Rules.canDiscard(handKouBesideQuad, handKouBesideQuad.indexOf(sheng)) === true
+    Rules.canDiscard(handDragon, 0) === false
+    && Rules.canDiscard(handDragon, handDragon.indexOf(dragonXiao)) === false
+    && Rules.canDiscard(handDragon, handDragon.indexOf(dragonSheng)) === false
 ) {
-    console.log('canDiscard (KOU beside quad) passed.');
+    console.log('canDiscard (dragon stays whole) passed.');
 } else {
-    console.error('canDiscard (KOU beside quad) FAILED.');
+    console.error('canDiscard (dragon stays whole) FAILED.');
+    process.exit(1);
+}
+
+// A second 小 is not needed for the dragon, so that spare copy can be discarded.
+const spareXiao = new Card(132, 4, 1);
+const handDragonSpare = [...handDragon, spareXiao];
+if (
+    Rules.canDiscard(handDragonSpare, handDragonSpare.indexOf(spareXiao)) === true
+    && Rules.canDiscard(handDragonSpare, handDragonSpare.indexOf(dragonXiao)) === true
+    && Rules.canDiscard(handDragonSpare, handDragonSpare.indexOf(dragonSheng)) === false
+) {
+    console.log('canDiscard (spare beside dragon) passed.');
+} else {
+    console.error('canDiscard (spare beside dragon) FAILED.');
+    process.exit(1);
+}
+
+// Four 尔 plus 小 is a half-dragon. 小 is part of that meld.
+const halfXiao = new Card(133, 4, 1);
+const handHalfDragon = [...erTrip, new Card(134, 4, 0), halfXiao];
+if (Rules.canDiscard(handHalfDragon, handHalfDragon.indexOf(halfXiao)) === false) {
+    console.log('canDiscard (half-dragon stays whole) passed.');
+} else {
+    console.error('canDiscard (half-dragon stays whole) FAILED.');
     process.exit(1);
 }
 
