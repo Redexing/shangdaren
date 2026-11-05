@@ -17,9 +17,12 @@ const VEGGIE_WAIVER_BLOCKING_TYPES = new Set([
     'TWO-DRAGONS-TUSSLING'
 ]);
 
-// 上, 七, and 可. Four of a kind is one special-quad bonus worth 2.
-// A PENG or SAO of each of these characters is its own special-trip bonus worth 2.
+// 上, 七, and 可. Four of one character in a single quad meld is one
+// special-quad bonus worth 2. A PENG or SAO of each is its own special-trip.
 export const REWARD_QUAD_CHARACTERS = ['上', '七', '可'];
+const SPECIAL_QUAD_MELD_TYPES = new Set([
+    'KAI-ZAO', 'XIA-CE', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'
+]);
 
 const REWARD_WEIGHTS = {
     'exact-10': 1,
@@ -514,8 +517,8 @@ export class Rules {
         if (partition.some(m => m.type === 'TWO-DRAGONS-TUSSLING')) reasons.push('two-dragons-tussling');
         const doubledUp = this.doubledUpPairs(partition);
         for (let i = 0; i < doubledUp; i++) reasons.push('doubled-up');
-        if (this.hasRewardQuad(allCards)) reasons.push('special-quad');
-        for (let i = 0; i < this.specialTripCount(partition, allCards); i++) reasons.push('special-trip');
+        if (this.hasRewardQuad(partition)) reasons.push('special-quad');
+        for (let i = 0; i < this.specialTripCount(partition); i++) reasons.push('special-trip');
         if (allCards.length > 0 && allCards.every(c => this.isMeat(c.suiteIndex))) reasons.push('all-meat');
         if (allCards.length > 0 && allCards.every(c => c.isRed)) reasons.push('big-red');
         if (allCards.length > 0 && allCards.every(c => !c.isRed)) reasons.push('big-black');
@@ -542,21 +545,29 @@ export class Rules {
         return pairs;
     }
 
-    static hasRewardQuad(cards) {
-        return this.rewardQuadCharacters(cards).length > 0;
+    // [RULE-REWARD-SPECIAL-QUAD]: four of 上, 七, or 可 inside one quad meld.
+    // A PENG of three plus a fourth copy in another meld is not this reward.
+    static hasRewardQuad(partition) {
+        return (partition || []).some(meld => {
+            if (!meld || !SPECIAL_QUAD_MELD_TYPES.has(meld.type)) return false;
+            const counts = Object.create(null);
+            (meld.cards || []).forEach(card => {
+                if (!REWARD_QUAD_CHARACTERS.includes(card.character)) return;
+                counts[card.character] = (counts[card.character] || 0) + 1;
+            });
+            return REWARD_QUAD_CHARACTERS.some(character => counts[character] >= 4);
+        });
     }
 
     /**
      * [RULE-REWARD-SPECIAL-TRIP]: each PENG or SAO of 上, 七, or 可 in the
      * winning partition scores 2 rewards. A concealed 3-of-a-kind is SAO.
-     * A claimed one is PENG. Four of that character stays special-quad and
-     * is not also a trip, even when an exposed PENG keeps three cards and the
-     * fourth copy sits in another meld. Copies split across CHI are not a trip.
-     * Two of these characters each add their own 2. A quad of one still stacks
-     * with a trip of a different one.
+     * A claimed one is PENG. A fourth copy in a different meld does not
+     * remove this reward. Copies split across CHI are not a trip.
+     * Two of these characters each add their own 2. A quad meld of one
+     * still stacks with a trip of a different one.
      */
-    static specialTripCount(partition, allCards = []) {
-        const quadCharacters = new Set(this.rewardQuadCharacters(allCards));
+    static specialTripCount(partition) {
         const found = new Set();
         (partition || []).forEach(meld => {
             if (!meld || (meld.type !== 'PENG' && meld.type !== 'SAO')) return;
@@ -564,20 +575,10 @@ export class Rules {
             if (cards.length !== 3) return;
             const character = cards[0].character;
             if (!REWARD_QUAD_CHARACTERS.includes(character)) return;
-            if (quadCharacters.has(character)) return;
             if (!cards.every(c => c.character === character)) return;
             found.add(character);
         });
         return found.size;
-    }
-
-    static rewardQuadCharacters(cards) {
-        const counts = Object.create(null);
-        REWARD_QUAD_CHARACTERS.forEach(ch => { counts[ch] = 0; });
-        (cards || []).forEach(c => {
-            if (Object.prototype.hasOwnProperty.call(counts, c.character)) counts[c.character]++;
-        });
-        return REWARD_QUAD_CHARACTERS.filter(ch => counts[ch] >= 4);
     }
 
     /**
