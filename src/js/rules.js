@@ -20,8 +20,15 @@ const VEGGIE_WAIVER_BLOCKING_TYPES = new Set([
 // 上, 七, and 可. Four of one character in a single quad meld is one
 // special-quad bonus worth 2. A PENG or SAO of each is its own special-trip.
 export const REWARD_QUAD_CHARACTERS = ['上', '七', '可'];
+// Every meld that can hold a 4-of-a-kind. PENG, SAO, CHI, and KOU cannot.
 const SPECIAL_QUAD_MELD_TYPES = new Set([
-    'KAI-ZAO', 'XIA-CE', 'DRAGON', 'SNAKE', 'HALF-DRAGON', 'HALF-SNAKE'
+    'KAI-ZAO',
+    'XIA-CE',
+    'DRAGON',
+    'SNAKE',
+    'HALF-DRAGON',
+    'HALF-SNAKE',
+    'TWO-DRAGONS-TUSSLING'
 ]);
 
 const REWARD_WEIGHTS = {
