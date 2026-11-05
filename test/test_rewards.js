@@ -713,6 +713,26 @@ export function runRewardTests() {
         ['special-quad']
     );
 
+    // Game 89: exposed PENG of 可 cannot grow. The winning 可 is the fourth copy
+    // and completes CHI 可知礼. All veggie, so the score waiver applies.
+    // special-quad only: 1 + 2 = 3, not also special-trip.
+    expectReward(
+        '[RULE-REWARD-SPECIAL-TRIP] Game 89: four 可 with an exposed PENG score special-quad only',
+        [
+            card(7, 1),
+            card(7, 2),
+            ...chi(3),
+            ...chi(5),
+            ...kou(4, 0, 1),
+            ...kou(6, 0, 1)
+        ],
+        [{ type: 'PENG', cards: cards(7, 0, 3) }],
+        card(7, 0),
+        { isSelf: false, isSelfDraw: false },
+        3,
+        ['all-veggie', 'special-quad']
+    );
+
     // Exposed quad adds one card to the 16-card count. 上 is red; 可 is black.
     expectReward(
         '[RULE-REWARD-SPECIAL-TRIP] PENG of 可 stacks with a quad of 上',
