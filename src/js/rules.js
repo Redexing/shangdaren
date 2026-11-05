@@ -515,7 +515,7 @@ export class Rules {
         const doubledUp = this.doubledUpPairs(partition);
         for (let i = 0; i < doubledUp; i++) reasons.push('doubled-up');
         if (this.hasRewardQuad(allCards)) reasons.push('special-quad');
-        for (let i = 0; i < this.specialTripCount(partition); i++) reasons.push('special-trip');
+        for (let i = 0; i < this.specialTripCount(partition, allCards); i++) reasons.push('special-trip');
         if (allCards.length > 0 && allCards.every(c => this.isMeat(c.suiteIndex))) reasons.push('all-meat');
         if (allCards.length > 0 && allCards.every(c => c.isRed)) reasons.push('big-red');
         if (allCards.length > 0 && allCards.every(c => !c.isRed)) reasons.push('big-black');
@@ -543,22 +543,20 @@ export class Rules {
     }
 
     static hasRewardQuad(cards) {
-        const counts = Object.create(null);
-        REWARD_QUAD_CHARACTERS.forEach(ch => { counts[ch] = 0; });
-        cards.forEach(c => {
-            if (Object.prototype.hasOwnProperty.call(counts, c.character)) counts[c.character]++;
-        });
-        return REWARD_QUAD_CHARACTERS.some(ch => counts[ch] >= 4);
+        return this.rewardQuadCharacters(cards).length > 0;
     }
 
     /**
      * [RULE-REWARD-SPECIAL-TRIP]: each PENG or SAO of 上, 七, or 可 in the
      * winning partition scores 2 rewards. A concealed 3-of-a-kind is SAO.
      * A claimed one is PENG. Four of that character stays special-quad and
-     * is not also a trip. Copies split across CHI are not a trip.
-     * Two of these characters each add their own 2.
+     * is not also a trip, even when an exposed PENG keeps three cards and the
+     * fourth copy sits in another meld. Copies split across CHI are not a trip.
+     * Two of these characters each add their own 2. A quad of one still stacks
+     * with a trip of a different one.
      */
-    static specialTripCount(partition) {
+    static specialTripCount(partition, allCards = []) {
+        const quadCharacters = new Set(this.rewardQuadCharacters(allCards));
         const found = new Set();
         (partition || []).forEach(meld => {
             if (!meld || (meld.type !== 'PENG' && meld.type !== 'SAO')) return;
@@ -566,10 +564,20 @@ export class Rules {
             if (cards.length !== 3) return;
             const character = cards[0].character;
             if (!REWARD_QUAD_CHARACTERS.includes(character)) return;
+            if (quadCharacters.has(character)) return;
             if (!cards.every(c => c.character === character)) return;
             found.add(character);
         });
         return found.size;
+    }
+
+    static rewardQuadCharacters(cards) {
+        const counts = Object.create(null);
+        REWARD_QUAD_CHARACTERS.forEach(ch => { counts[ch] = 0; });
+        (cards || []).forEach(c => {
+            if (Object.prototype.hasOwnProperty.call(counts, c.character)) counts[c.character]++;
+        });
+        return REWARD_QUAD_CHARACTERS.filter(ch => counts[ch] >= 4);
     }
 
     /**
