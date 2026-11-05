@@ -12,11 +12,11 @@ Otherwise read `docs/game.md` before judging. Section 5 is the only source of `[
 
 Run the command from the task prompt. It is `scripts/qa-robots.mjs` with `--games 1`, this game's `--index`, `--url`, `--out`, and `--port`. Do not write another driver and do not click through the table yourself.
 
-The script opens one Chrome window wider than 800px, drops a stale service worker and cache, sets English and sound off, sets the browser zoom to 50%, clicks Watch once, and waits for the ending. The 50% zoom happens before Watch so the final screenshot contains every card in HAND, EXPOSED, DISCARD, and PASSED. That zoom is not a layout bug. It records `alert` text instead of leaving a blocking dialog. It writes three files into the output directory:
+The script opens one Chrome window wider than 800px, drops a stale service worker and cache, sets English and sound off, sets the browser zoom to 50% before it clicks Watch, clicks Watch once, and waits for the ending. The 50% zoom happens before Watch so the final screenshot contains every card in HAND, EXPOSED, DISCARD, and PASSED, with the dashboard below those piles. That zoom is not a layout bug. The script records `alert` text instead of leaving a blocking dialog. It writes three files into the output directory:
 
 - `capture.json` — seed, alert, ending, elapsed time, mechanical anomalies, and the console excerpt
 - `console.txt` — the same excerpt: one copy of each line from `[DECK] Initializing with seed:` through the terminal line, plus any `console.error`
-- `board.png` — the full page after the hand ends, including `#players-area` and `#dashboard`
+- `board.png` — the visible window after the hand ends, at 50% browser zoom, including `#players-area` and `#dashboard` below the piles
 
 Exit codes:
 

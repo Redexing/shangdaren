@@ -18,9 +18,11 @@
 // source files and does not scale timers.
 //
 // Before each Watch click the browser zoom is reset to 100% and then set to
-// 50%, so the full-page screenshot shows every hand, exposed meld, discard
-// pile, and passed pile. Chrome's zoom presets from 100% are 90, 80, 75, 67,
-// and 50, so that is five Ctrl+Minus steps after Ctrl+0.
+// 50%, so the visible window shows every hand, exposed meld, discard pile,
+// and passed pile. Chrome's zoom presets from 100% are 90, 80, 75, 67, and
+// 50, so that is five Ctrl+Minus steps after Ctrl+0. board.png is that
+// window. A beyond-viewport capture of the CSS content box paints the fixed
+// dashboard over those piles.
 //
 // Exit 0: every game reached an ending.
 // Exit 1: a game stalled, or Chrome or the page failed.
@@ -425,18 +427,13 @@ async function main() {
     })()`);
 
     async function saveBoard(dir) {
-      const metrics = await send('Page.getLayoutMetrics');
-      const size = metrics.cssContentSize || metrics.contentSize;
+      // The dashboard is position:fixed. Capturing past the viewport, using
+      // the CSS content size at 50% zoom, paints that bar over DISCARD and
+      // PASSED. The visible window at this zoom already fits those piles.
+      await evaluate('window.scrollTo(0, 0)');
       const shot = await send('Page.captureScreenshot', {
         format: 'png',
-        captureBeyondViewport: true,
-        clip: {
-          x: 0,
-          y: 0,
-          width: Math.max(1, Math.ceil(size.width)),
-          height: Math.max(1, Math.ceil(size.height)),
-          scale: 1
-        }
+        captureBeyondViewport: false
       });
       const file = path.join(dir, 'board.png');
       writeFileSync(file, Buffer.from(shot.data, 'base64'));
