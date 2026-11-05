@@ -650,18 +650,19 @@ export class Rules {
         const sameCount = hand.filter(c => c.typeId === card.typeId).length;
         if (sameCount >= 3) return false;
 
-        // 2. Check if card is essential for a complete suite (CHI) in hand.
-        // [RULE-SUIT-MELD-PRIORITY]: a 3- or 4-of-a-kind stays whole, so those
-        // copies are not part of a CHI. The other two characters are a KOU,
-        // and either of them may be discarded ([RULE-DISCARD-RESTRICTION-CHI]).
+        // 2. A card that forms a meld other than KOU cannot be discarded
+        // ([RULE-DISCARD-RESTRICTION-HAND-MELD]).
         const suiteCards = hand.filter(c => c.suiteIndex === card.suiteIndex);
         const counts = [0, 0, 0];
         suiteCards.forEach(c => {
             counts[c.characterIndex]++;
         });
-        for (let i = 0; i < 3; i++) {
-            if (counts[i] >= 3) counts[i] = 0;
-        }
+        if (this._lockedInHandMeld(counts, card.characterIndex)) return false;
+
+        // 3. A 3-of-a-kind stays whole, so it is not CHI material. The other two
+        // characters are a KOU and may be discarded ([RULE-DISCARD-RESTRICTION-CHI]).
+        const trips = counts.some(count => count === 3);
+        if (trips) return true;
 
         const oldSuites = Math.min(counts[0], counts[1], counts[2]);
         if (oldSuites > 0) {
@@ -672,6 +673,26 @@ export class Rules {
         }
 
         return true;
+    }
+
+    // [RULE-DISCARD-RESTRICTION-HAND-MELD]: 4-of-a-kind shapes come before CHI.
+    // A dragon, half-dragon, or two-dragons uses one card of each attached
+    // character. A spare copy beyond that one may be discarded. The 4-of-a-kind
+    // itself is already rejected because its count is at least 3.
+    static _lockedInHandMeld(counts, characterIndex) {
+        const quads = [0, 1, 2].filter(i => counts[i] >= 4);
+        if (quads.length >= 2) {
+            const single = [0, 1, 2].find(i => counts[i] > 0 && counts[i] < 4);
+            return single === characterIndex && counts[single] === 1;
+        }
+        if (quads.length === 1) {
+            const others = [0, 1, 2].filter(i => i !== quads[0] && counts[i] > 0);
+            if (!others.includes(characterIndex)) return false;
+            // One of each other character completes a dragon. One other
+            // character completes a half-dragon. Either meld needs that copy.
+            return counts[characterIndex] === 1;
+        }
+        return false;
     }
 
     /**
