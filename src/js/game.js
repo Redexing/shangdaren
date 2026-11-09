@@ -4,11 +4,13 @@ import { Player } from './player.js';
 import { Rules } from './rules.js';
 import { getFreshSeed } from './utils.js';
 import { GAME_SPEEDS } from './constants.js';
+import { lineIdForAction, lineIdForGlyph } from './voice_lines.js';
 
 export const EVENTS = {
     STATE_CHANGE: 'state_change',
     LOG: 'log',
-    GAME_OVER: 'game_over'
+    GAME_OVER: 'game_over',
+    VOICE_CALL: 'VOICE_CALL'
 };
 
 export class Game {
@@ -125,6 +127,10 @@ export class Game {
         this.activeCardSource = 'DECK';
         this.declinedPlayers.clear(); // Important: reset for new card
         this.log(`${this.getCurrentPlayer().name} drew ${card.toString()}`);
+        this.emit(EVENTS.VOICE_CALL, {
+            playerIndex: this.currentPlayerIndex,
+            lineId: lineIdForGlyph(card.character)
+        });
 
         // Pause briefly so user can see it in center discard
         this.emit(EVENTS.STATE_CHANGE);
@@ -133,6 +139,15 @@ export class Game {
         this.scheduleFlow(delay, () => {
             this.handleDrawActions(card);
         });
+    }
+
+    // The Draw button and the deck both call this. It only preempts the
+    // turn-start timer. A card already in the center (a fresh draw, or a
+    // passed card being offered) is left alone.
+    handlePlayerDraw() {
+        if (this.turnPhase !== 'DRAWING' || this.activeCard) return;
+        this.flowToken++;
+        this.drawCard();
     }
 
     checkInterrupts(card, isDraw) {
@@ -183,7 +198,8 @@ export class Game {
         return {
             isSelf: playerIndex === this.currentPlayerIndex,
             isSelfDraw,
-            declinedKouCards: player.declinedKouCards || []
+            declinedKouCards: player.declinedKouCards || [],
+            brokenKouSuits: player.brokenKouSuits || []
         };
     }
 
@@ -398,6 +414,7 @@ export class Game {
                 });
             } else {
                 // Case 2: Player declines a card passed to them (Secondary Pass)
+                this.announceCall(playerIndex, 'PASS');
                 this.log(`${p.name} declined passed card. Now draws from deck.`);
 
                 // Brief pause to show it in the center before it's gone
@@ -443,7 +460,16 @@ export class Game {
         }
     }
 
+    announceCall(playerIndex, type) {
+        this.emit('ACTION_ANNOUNCE', { playerIndex, type });
+        const lineId = lineIdForAction(type);
+        if (lineId) {
+            this.emit(EVENTS.VOICE_CALL, { playerIndex, lineId });
+        }
+    }
+
     handleHarmony(playerIndex, card) {
+        this.announceCall(playerIndex, 'HARMONY');
         const p = this.players[playerIndex];
         const isSelfDraw = this.isSelfDrawFor(playerIndex);
         const isSelf = playerIndex === this.currentPlayerIndex;
@@ -459,6 +485,7 @@ export class Game {
         // Finalize state: Add all cards to exposed for visualization
         const assessed = Rules.assessHarmony(p.hand, p.exposed, card, { isSelfDraw, isSelf });
         if (assessed && assessed.partition) {
+            assessed.partition.forEach(meld => this.sortMeldCards(meld.cards));
             p.exposed = assessed.partition;
             p.hand = [];
         }
@@ -479,6 +506,7 @@ export class Game {
             const idx = player.hand.findIndex(hc => hc.id === c.id);
             if (idx !== -1) player.hand.splice(idx, 1);
         });
+        this.sortMeldCards(nakedQuad);
         player.exposed.push({ type: 'KAI-ZAO', cards: nakedQuad });
         highlighted.push(...nakedQuad);
         this.log(`${player.name} revealed naked 4-of-a-kind (${nakedQuad[0].toString()}) in EXPOSED and skipped discard`);
@@ -523,10 +551,10 @@ export class Game {
                 }
                 meld.type = action.type; // Upgrade type (e.g., CHI or DRAGON)
                 meld.cards.push(card);
-                meld.cards.sort((a, b) => a.characterIndex - b.characterIndex);
+                this.sortMeldCards(meld.cards);
                 highlighted.push(card, ...meld.cards);
                 this.log(`${player.name} upgraded ${oldType} into ${action.type} with ${card.toString()}`);
-                this.emit('ACTION_ANNOUNCE', { playerIndex, type: action.type });
+                this.announceCall(playerIndex, action.type);
 
                 // [RULE-PASSED-RECLAMATION]
                 if (this.activeCardSource !== null && this.activeCardSource !== 'DECK' && this.activeCardSource !== playerIndex) {
@@ -535,9 +563,10 @@ export class Game {
                 }
             }
         } else {
-            const meldCards = [...action.cards, card];
+            const meldCards = [...(action.cards || []), card];
+            this.sortMeldCards(meldCards);
             // Remove from hand
-            action.cards.forEach(c => {
+            (action.cards || []).forEach(c => {
                 const idx = player.hand.findIndex(hc => hc.id === c.id);
                 if (idx !== -1) player.hand.splice(idx, 1);
             });
@@ -546,7 +575,7 @@ export class Game {
             if (action.quadTypes) newMeld.quadTypes = action.quadTypes;
             player.exposed.push(newMeld);
             this.log(`${player.name} performs ${action.type}`);
-            this.emit('ACTION_ANNOUNCE', { playerIndex, type: action.type });
+            this.announceCall(playerIndex, action.type);
             highlighted.push(...meldCards);
 
             // Rule 6 removal
@@ -555,6 +584,10 @@ export class Game {
                 prevP.removePassedCard(card);
             }
         }
+
+        // The claimed card now lives in the meld. Clear the center before a
+        // win or baozi returns, so the same card is not shown in both places.
+        this.activeCard = null;
 
         // Check Harmony
         if (this.finishHarmonyIfWon(player)) return;
@@ -688,25 +721,26 @@ export class Game {
                 }
                 meld.type = action.type;
                 meld.cards.push(meldCard);
-                meld.cards.sort((a, b) => a.characterIndex - b.characterIndex);
+                this.sortMeldCards(meld.cards);
 
                 // Rule 6 removal
                 if (this.activeCardSource !== null && this.activeCardSource !== 'DECK' && this.activeCardSource !== humanIdx) {
                     const prevP = this.players[this.activeCardSource];
                     prevP.removePassedCard(meldCard);
                 }
-                this.emit('ACTION_ANNOUNCE', { playerIndex: humanIdx, type: action.type });
+                this.announceCall(humanIdx, action.type);
             }
         } else {
-            const meldCards = [...action.cards, meldCard];
-            action.cards.forEach(c => {
+            const meldCards = [...(action.cards || []), meldCard];
+            this.sortMeldCards(meldCards);
+            (action.cards || []).forEach(c => {
                 const idx = p.hand.findIndex(hc => hc.id === c.id);
                 if (idx !== -1) p.hand.splice(idx, 1);
             });
             const newMeld = { type: action.type, cards: meldCards };
             if (action.quadTypes) newMeld.quadTypes = action.quadTypes;
             p.exposed.push(newMeld);
-            this.emit('ACTION_ANNOUNCE', { playerIndex: humanIdx, type: action.type });
+            this.announceCall(humanIdx, action.type);
 
             // Rule 6 removal
             if (this.activeCardSource !== null && this.activeCardSource !== 'DECK' && this.activeCardSource !== humanIdx) {
@@ -760,6 +794,7 @@ export class Game {
 
         // Add meld to exposed
         const meldCards = [...sameCards, card];
+        this.sortMeldCards(meldCards);
         player.exposed.push({ type, cards: meldCards });
 
 
@@ -882,6 +917,12 @@ export class Game {
         // Random for now
         const idx = Math.floor(Math.random() * player.hand.length);
         this.handlePlayerDiscard(idx);
+    }
+
+    // A meld is one suit. Character order is the mnemonic order of that suit.
+    sortMeldCards(cards) {
+        if (!cards) return;
+        cards.sort((a, b) => a.characterIndex - b.characterIndex);
     }
 
     handAfterMeldClaim(hand, action) {

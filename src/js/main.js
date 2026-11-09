@@ -2,6 +2,8 @@ import { Game, EVENTS } from './game.js';
 import { Rules } from './rules.js';
 import { TRANSLATIONS } from './translations.js';
 import { UI_DELAYS } from './constants.js';
+import { SOUND_OPTIONS } from './voice_lines.js';
+import { currentSoundVoice, enqueueVoiceCall, setSoundVoice, unlockVoice } from './voice.js';
 
 const app = document.getElementById('app');
 const gameBoard = document.getElementById('game-board');
@@ -58,6 +60,8 @@ function init() {
         alert(msg);
     });
 
+    game.on(EVENTS.VOICE_CALL, enqueueVoiceCall);
+
     game.on('ACTION_ANNOUNCE', ({ playerIndex, type }) => {
         const playerEl = document.querySelector(`.player-${playerIndex}`);
         if (playerEl) {
@@ -87,8 +91,32 @@ function setupHeader() {
     const settings = document.createElement('div');
     settings.className = 'settings-panel';
 
+    const soundLabel = document.createElement('label');
+    soundLabel.textContent = t('Sound on') + ': ';
+    soundLabel.htmlFor = 'sound-select';
+
+    const soundSelect = document.createElement('select');
+    soundSelect.id = 'sound-select';
+    SOUND_OPTIONS.forEach(option => {
+        const opt = document.createElement('option');
+        opt.value = option.value;
+        opt.textContent = t(option.labelKey);
+        soundSelect.appendChild(opt);
+    });
+    soundSelect.value = currentSoundVoice();
+    soundSelect.onchange = (e) => {
+        const prev = currentSoundVoice();
+        const next = e.target.value;
+        if (prev === 'none' && next !== 'none') unlockVoice();
+        setSoundVoice(next);
+    };
+
+    settings.appendChild(soundLabel);
+    settings.appendChild(soundSelect);
+
     const label = document.createElement('label');
     label.textContent = t('Language') + ': ';
+    label.htmlFor = 'lang-select';
 
     const select = document.createElement('select');
     select.id = 'lang-select';
@@ -153,6 +181,7 @@ function setupDashboard() {
         const watchBtn = document.createElement('button');
         watchBtn.id = 'btn-watch';
         watchBtn.onclick = () => {
+            unlockVoice();
             lastCarouselSlot = 1;
             lastRenderedTurn = -1;
             game.init(true);
@@ -163,6 +192,7 @@ function setupDashboard() {
         const newBtn = document.createElement('button');
         newBtn.id = 'btn-new-game';
         newBtn.onclick = () => {
+            unlockVoice();
             lastCarouselSlot = 1;
             lastRenderedTurn = -1;
             game.init(false);
