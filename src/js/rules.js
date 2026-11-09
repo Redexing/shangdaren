@@ -17,8 +17,19 @@ const VEGGIE_WAIVER_BLOCKING_TYPES = new Set([
     'TWO-DRAGONS-TUSSLING'
 ]);
 
-// Four of a kind of these characters is worth two rewards. No other character qualifies.
+// 上, 七, and 可. Four of one character in a single quad meld is one
+// special-quad bonus worth 2. A PENG or SAO of each is its own special-trip.
 export const REWARD_QUAD_CHARACTERS = ['上', '七', '可'];
+// Every meld that can hold a 4-of-a-kind. PENG, SAO, CHI, and KOU cannot.
+const SPECIAL_QUAD_MELD_TYPES = new Set([
+    'KAI-ZAO',
+    'XIA-CE',
+    'DRAGON',
+    'SNAKE',
+    'HALF-DRAGON',
+    'HALF-SNAKE',
+    'TWO-DRAGONS-TUSSLING'
+]);
 
 const REWARD_WEIGHTS = {
     'exact-10': 1,
@@ -29,6 +40,8 @@ const REWARD_WEIGHTS = {
     'two-dragons-tussling': 3,
     'doubled-up': 1,
     'special-quad': 2,
+    // [RULE-REWARD-SPECIAL-TRIP]: one PENG or SAO of 上, 七, or 可. Each character adds its own 2.
+    'special-trip': 2,
     'all-meat': 1,
     'big-red': 3,
     'big-black': 4
@@ -511,7 +524,8 @@ export class Rules {
         if (partition.some(m => m.type === 'TWO-DRAGONS-TUSSLING')) reasons.push('two-dragons-tussling');
         const doubledUp = this.doubledUpPairs(partition);
         for (let i = 0; i < doubledUp; i++) reasons.push('doubled-up');
-        if (this.hasRewardQuad(allCards)) reasons.push('special-quad');
+        if (this.hasRewardQuad(partition)) reasons.push('special-quad');
+        for (let i = 0; i < this.specialTripCount(partition); i++) reasons.push('special-trip');
         if (allCards.length > 0 && allCards.every(c => this.isMeat(c.suiteIndex))) reasons.push('all-meat');
         if (allCards.length > 0 && allCards.every(c => c.isRed)) reasons.push('big-red');
         if (allCards.length > 0 && allCards.every(c => !c.isRed)) reasons.push('big-black');
@@ -538,13 +552,40 @@ export class Rules {
         return pairs;
     }
 
-    static hasRewardQuad(cards) {
-        const counts = Object.create(null);
-        REWARD_QUAD_CHARACTERS.forEach(ch => { counts[ch] = 0; });
-        cards.forEach(c => {
-            if (Object.prototype.hasOwnProperty.call(counts, c.character)) counts[c.character]++;
+    // [RULE-REWARD-SPECIAL-QUAD]: four of 上, 七, or 可 inside one quad meld.
+    // A PENG of three plus a fourth copy in another meld is not this reward.
+    static hasRewardQuad(partition) {
+        return (partition || []).some(meld => {
+            if (!meld || !SPECIAL_QUAD_MELD_TYPES.has(meld.type)) return false;
+            const counts = Object.create(null);
+            (meld.cards || []).forEach(card => {
+                if (!REWARD_QUAD_CHARACTERS.includes(card.character)) return;
+                counts[card.character] = (counts[card.character] || 0) + 1;
+            });
+            return REWARD_QUAD_CHARACTERS.some(character => counts[character] >= 4);
         });
-        return REWARD_QUAD_CHARACTERS.some(ch => counts[ch] >= 4);
+    }
+
+    /**
+     * [RULE-REWARD-SPECIAL-TRIP]: each PENG or SAO of 上, 七, or 可 in the
+     * winning partition scores 2 rewards. A concealed 3-of-a-kind is SAO.
+     * A claimed one is PENG. A fourth copy in a different meld does not
+     * remove this reward. Copies split across CHI are not a trip.
+     * Two of these characters each add their own 2. A quad meld of one
+     * still stacks with a trip of a different one.
+     */
+    static specialTripCount(partition) {
+        const found = new Set();
+        (partition || []).forEach(meld => {
+            if (!meld || (meld.type !== 'PENG' && meld.type !== 'SAO')) return;
+            const cards = meld.cards || [];
+            if (cards.length !== 3) return;
+            const character = cards[0].character;
+            if (!REWARD_QUAD_CHARACTERS.includes(character)) return;
+            if (!cards.every(c => c.character === character)) return;
+            found.add(character);
+        });
+        return found.size;
     }
 
     /**
@@ -625,12 +666,19 @@ export class Rules {
         const sameCount = hand.filter(c => c.typeId === card.typeId).length;
         if (sameCount >= 3) return false;
 
-        // 2. Check if card is essential for a complete suite (CHI) in hand
+        // 2. A card that forms a meld other than KOU cannot be discarded
+        // ([RULE-DISCARD-RESTRICTION-HAND-MELD]).
         const suiteCards = hand.filter(c => c.suiteIndex === card.suiteIndex);
         const counts = [0, 0, 0];
         suiteCards.forEach(c => {
             counts[c.characterIndex]++;
         });
+        if (this._lockedInHandMeld(counts, card.characterIndex)) return false;
+
+        // 3. A 3-of-a-kind stays whole, so it is not CHI material. The other two
+        // characters are a KOU and may be discarded ([RULE-DISCARD-RESTRICTION-CHI]).
+        const trips = counts.some(count => count === 3);
+        if (trips) return true;
 
         const oldSuites = Math.min(counts[0], counts[1], counts[2]);
         if (oldSuites > 0) {
@@ -643,20 +691,45 @@ export class Rules {
         return true;
     }
 
+    // [RULE-DISCARD-RESTRICTION-HAND-MELD]: 4-of-a-kind shapes come before CHI.
+    // A dragon, half-dragon, or two-dragons uses one card of each attached
+    // character. A spare copy beyond that one may be discarded. The 4-of-a-kind
+    // itself is already rejected because its count is at least 3.
+    static _lockedInHandMeld(counts, characterIndex) {
+        const quads = [0, 1, 2].filter(i => counts[i] >= 4);
+        if (quads.length >= 2) {
+            const single = [0, 1, 2].find(i => counts[i] > 0 && counts[i] < 4);
+            return single === characterIndex && counts[single] === 1;
+        }
+        if (quads.length === 1) {
+            const others = [0, 1, 2].filter(i => i !== quads[0] && counts[i] > 0);
+            if (!others.includes(characterIndex)) return false;
+            // One of each other character completes a dragon. One other
+            // character completes a half-dragon. Either meld needs that copy.
+            return counts[characterIndex] === 1;
+        }
+        return false;
+    }
+
     /**
-     * No-do-over for KOU. A suit stays closed for the rest of the game when
-     * this player has discarded any card of that suit, or previously declined
-     * a card when KOU was a legal option. A pass that could not form KOU does
-     * not close the suit. Harmony can still use a closed suit.
+     * No-do-over for KOU. A suit stays closed when a discard left a different
+     * character of that suit in hand, or this player previously declined a card
+     * when KOU was a legal option. Discarding a spare copy of the same character
+     * does not close the suit. A pass that could not form KOU does not either.
+     * Cards already locked in an exposed meld are not still "in hand".
+     * Harmony can still use a closed suit.
      */
-    static isKouClosed(card, discards = [], declinedKouCards = []) {
+    static isKouClosed(card, declinedKouCards = [], brokenKouSuits = []) {
         if (!card) return false;
         const sameSuit = (c) => c && c.suiteIndex === card.suiteIndex;
-        return (discards || []).some(sameSuit)
+        return (brokenKouSuits || []).includes(card.suiteIndex)
             || (declinedKouCards || []).some(sameSuit);
     }
 
     static getActions(hand, card, isSelf, exposed = [], discards = [], options = {}) {
+        // `discards` stays in the signature for callers. A discard closes KOU only
+        // when it left a different character of the suit in hand; that fact is
+        // recorded on the player and passed as options.brokenKouSuits.
         const moves = [];
         const sameInHand = hand.filter(c => c.typeId === card.typeId);
         const count = sameInHand.length;
@@ -666,7 +739,8 @@ export class Rules {
         const uniqueInSuite = Array.from(new Set(availSuiteInHand.map(c => c.characterIndex)));
 
         const declinedKouCards = options.declinedKouCards || [];
-        const suiteBroken = this.isKouClosed(card, discards, declinedKouCards);
+        const brokenKouSuits = options.brokenKouSuits || [];
+        const suiteBroken = this.isKouClosed(card, declinedKouCards, brokenKouSuits);
 
         const saoMatch = exposed.find(m => m.type === 'SAO' && m.cards[0].typeId === card.typeId);
         const halfMeldInSuite = exposed.find(

@@ -66,6 +66,8 @@ header {
 }
 
 #header-settings .settings-panel {
+    display: flex;
+    flex-wrap: wrap;
     background: transparent;
     border: none;
     box-shadow: none;
